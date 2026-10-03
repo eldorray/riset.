@@ -37,7 +37,7 @@
     <header class="border-b border-line pb-6">
         <p class="eyebrow mb-2">Admin / Konfigurasi</p>
         <h1 class="font-display text-[30px] sm:text-[40px] font-medium">Logo aplikasi</h1>
-        <p class="mt-2 max-w-2xl text-sm text-ink-2">Logo tampil di landing page, halaman masuk, daftar proyek, serta navigasi pengguna dan admin.</p>
+        <p class="mt-2 max-w-2xl text-sm text-ink-2">Logo tampil di landing page, halaman masuk, daftar proyek, navigasi pengguna dan admin, serta favicon di tab browser.</p>
     </header>
     <form class="card flex max-w-2xl flex-col gap-6 p-6 sm:p-8" onsubmit={save}>
         <div>

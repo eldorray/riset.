@@ -5,8 +5,7 @@
         <meta name="theme-color" content="#f6f4ef">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link rel="icon" id="app-favicon" href="{{ $page['props']['logo_url'] ?? '/favicon.svg' }}">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         @fonts
