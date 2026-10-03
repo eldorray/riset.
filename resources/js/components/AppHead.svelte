@@ -15,7 +15,7 @@
 
     $effect(() => {
         const favicon = document.querySelector<HTMLLinkElement>('#app-favicon');
-        if (favicon) favicon.href = page.props.logo_url ?? '/favicon.svg';
+        if (favicon) favicon.href = page.props.logo_url ?? '/favicon.svg?v=riset';
     });
 </script>
 

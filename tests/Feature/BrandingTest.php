@@ -27,7 +27,7 @@ it('mengunggah mengganti dan menghapus logo yang ditampilkan kepada pengunjung',
     Storage::disk('local')->assertMissing($second);
     $this->get('/branding/logo')->assertNotFound();
     $this->get('/')->assertInertia(fn ($page) => $page->where('logo_url', null));
-    $this->get('/')->assertSee('id="app-favicon" href="/favicon.svg"', false);
+    $this->get('/')->assertSee('id="app-favicon" href="/favicon.svg?v=riset"', false);
 });
 
 it('menolak file yang bukan gambar serta logo terlalu besar tanpa mengubah logo lama', function () {
