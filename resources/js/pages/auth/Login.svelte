@@ -79,6 +79,12 @@
                 {#if redirecting}
                     <Icon name="spinner" /> Menghubungkan ke Google…
                 {:else}
+                    <svg class="shrink-0" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.73-.06-1.42-.19-2.09H12v3.96h5.92c-.26 1.28-1.03 2.37-2.18 3.1v2.58h3.52c2.06-1.9 3.3-4.7 3.3-8.03Z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.52-2.58c-.98.66-2.24 1.06-3.76 1.06-2.87 0-5.31-1.94-6.18-4.54H2.18v2.66A11 11 0 0 0 12 23Z" />
+                        <path fill="#FBBC05" d="M5.82 14.28a6.6 6.6 0 0 1 0-4.56V7.06H2.18a11 11 0 0 0 0 9.88l3.64-2.66Z" />
+                        <path fill="#EA4335" d="M12 5.18c1.62 0 3.07.56 4.21 1.66l3.16-3.16A10.53 10.53 0 0 0 12 1a11 11 0 0 0-9.82 6.06l3.64 2.66c.87-2.6 3.31-4.54 6.18-4.54Z" />
+                    </svg>
                     {error ? 'Coba masuk lagi dengan Google' : 'Masuk dengan Google'}
                 {/if}
             </a>
