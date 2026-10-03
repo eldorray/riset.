@@ -1,4 +1,5 @@
 <script lang="ts">
+    import AppLogo from '@/components/AppLogo.svelte';
     import { Link, page, useForm } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import FlashMessage from '@/components/FlashMessage.svelte';
@@ -28,7 +29,7 @@
 
 <div class="grid min-h-dvh grid-cols-1 bg-paper text-ink lg:grid-cols-[minmax(0,1fr)_560px]">
     <section class="hidden flex-col justify-between border-r border-line px-20 py-16 lg:flex">
-        <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[32px] leading-none font-medium tracking-tight">Riset<span class="text-primary">.</span></Link>
+        <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[32px] leading-none font-medium tracking-tight"><AppLogo /></Link>
         <div class="flex flex-col gap-10">
             <h2 class="max-w-2xl font-display text-6xl leading-[1.08] font-medium tracking-tight">
                 Susun karya ilmiah dari sumber yang bisa Anda periksa.
@@ -48,7 +49,7 @@
     <section class="flex flex-col justify-center bg-surface px-6 py-16 sm:px-16">
         <div class="flex max-w-100 flex-col gap-6">
             <div class="flex flex-col gap-2.5">
-                <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[28px] leading-none font-medium tracking-tight lg:hidden">Riset<span class="text-primary">.</span></Link>
+                <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[28px] leading-none font-medium tracking-tight lg:hidden"><AppLogo /></Link>
                 <h1 class="font-display text-[30px] sm:text-[40px] leading-tight font-medium">Masuk</h1>
                 <p class="text-[15px] leading-relaxed text-ink-2">
                     Gunakan akun Google, atau email dan password dari admin.

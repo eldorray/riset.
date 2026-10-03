@@ -26,6 +26,8 @@ Generasi otomatis menolak penyimpanan jika bagian berubah selama AI berjalan. Si
 
 ## Panel admin (`/admin`)
 
+Logo aplikasi dapat diunggah melalui **Konfigurasi → Logo aplikasi** (`/admin/branding`): PNG/JPG/WebP maksimal 2 MB dan 4096 × 4096 piksel. Pratinjau tersedia sebelum menyimpan, dan logo bawaan dapat dipulihkan. Berkas disimpan di storage privat lalu disajikan melalui endpoint gambar, tanpa membutuhkan `storage:link`.
+
 Menu Pengguna menyediakan hapus akun dengan konfirmasi. Akun beserta proyek, referensi, draf, subscription, kredit, sesi, dan token reset dihapus permanen. Admin tidak dapat menghapus akunnya sendiri; penghapusan ditunda selama penulisan AI masih menunggu/berjalan atau kredit AI masih direservasi.
 
 Ringkasan & status layanan · Pengguna (buat akun login email, ubah peran/password) · Gaya sitasi aktif · Struktur jenis tulisan · Template Word (font, spasi, margin, halaman judul, daftar isi, nomor halaman).

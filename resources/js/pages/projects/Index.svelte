@@ -1,4 +1,5 @@
 <script lang="ts">
+    import AppLogo from '@/components/AppLogo.svelte';
     import { Link, page, router, useForm } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import FlashMessage from '@/components/FlashMessage.svelte';
@@ -29,7 +30,7 @@
 
 <div class="flex min-h-dvh flex-col bg-paper text-ink">
     <header class="flex min-h-18 flex-wrap items-center justify-between gap-3 py-3 border-b border-line px-6 lg:px-16">
-        <span class="font-display text-[28px] leading-none font-medium tracking-tight">Riset<span class="text-primary">.</span></span>
+        <span class="font-display text-[28px] leading-none font-medium tracking-tight"><AppLogo /></span>
         {#if user}
             <div class="flex flex-wrap items-center gap-2 sm:gap-4">
                 {#if user.is_admin}

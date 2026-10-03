@@ -1,4 +1,5 @@
 <script lang="ts">
+    import AppLogo from '@/components/AppLogo.svelte';
     import { onMount } from 'svelte';
     import { Link, page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
@@ -75,7 +76,7 @@
     <a href="#main" class="skip-link">Lewati ke konten</a>
     <header class="border-b border-line bg-paper">
         <nav aria-label="Navigasi utama" class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
-            <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[30px] font-medium tracking-tight">Riset<span class="text-primary">.</span></Link>
+            <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[30px] font-medium tracking-tight"><AppLogo /></Link>
             <div class="hidden items-center gap-7 text-sm font-medium text-ink-2 md:flex"><a href="#fitur" class="hover:text-primary">Fitur</a><a href="#cara-kerja" class="hover:text-primary">Cara kerja</a><a href="#paket" class="hover:text-primary">Paket</a><a href="#faq" class="hover:text-primary">FAQ</a></div>
             <Link href={startUrl} class="btn btn-primary">{user ? 'Proyek saya' : 'Masuk'}<Icon name="external" size={15} /></Link>
         </nav>
@@ -131,7 +132,7 @@
         <section class="mx-auto max-w-7xl px-5 pb-16 sm:px-8 lg:px-12"><div data-reveal class="flex flex-wrap items-center justify-between gap-7 rounded-xl bg-primary px-6 py-9 text-white sm:px-10 sm:py-12"><div><p class="mb-2 text-xs font-medium text-white/80">Tulisan besar dimulai dari satu langkah.</p><h2 class="font-display text-3xl leading-tight font-medium sm:text-4xl">Beri arah pada ide Anda.</h2></div><Link href={startUrl} class="btn border-white bg-white text-primary hover:bg-primary-soft min-h-12 px-6">{startLabel}<Icon name="pen" size={16} /></Link></div></section>
     </main>
 
-    <footer class="border-t border-line"><div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-7 text-xs text-ink-3 sm:px-8 lg:px-12"><span class="font-display text-2xl font-medium text-ink">Riset<span class="text-primary">.</span></span><p>Ruang kerja akademik. Periksa sumber, tinjau tulisan.</p><Link href={startUrl} class="inline-flex min-h-11 items-center font-medium text-primary">{user ? 'Kembali ke proyek' : 'Masuk ke aplikasi'}</Link></div></footer>
+    <footer class="border-t border-line"><div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-7 text-xs text-ink-3 sm:px-8 lg:px-12"><span class="font-display text-2xl font-medium text-ink"><AppLogo /></span><p>Ruang kerja akademik. Periksa sumber, tinjau tulisan.</p><Link href={startUrl} class="inline-flex min-h-11 items-center font-medium text-primary">{user ? 'Kembali ke proyek' : 'Masuk ke aplikasi'}</Link></div></footer>
 </div>
 
 <style>

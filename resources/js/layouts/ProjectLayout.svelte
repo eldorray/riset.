@@ -1,4 +1,5 @@
 <script lang="ts">
+    import AppLogo from '@/components/AppLogo.svelte';
     import { Link, page, router } from '@inertiajs/svelte';
     import type { Snippet } from 'svelte';
     import AppHead from '@/components/AppHead.svelte';
@@ -44,7 +45,7 @@
 <div class="flex min-h-dvh flex-col bg-paper text-ink lg:flex-row">
     <header class="mobile-header border-b border-line bg-sunken px-4 py-3 lg:hidden">
         <div class="flex min-w-0 items-center justify-between gap-3">
-            <span class="font-display text-2xl font-medium">Riset<span class="text-primary">.</span></span>
+            <span class="font-display text-2xl font-medium"><AppLogo /></span>
             <span class="min-w-0 truncate text-sm text-ink-2">{project.title}</span>
         </div>
         <details class="mt-2">
@@ -65,7 +66,7 @@
                 href={projects.index().url}
                 class="px-3 font-display text-[26px] leading-none font-medium tracking-tight"
             >
-                Riset<span class="text-primary">.</span>
+                <AppLogo />
             </Link>
             <Link href={projects.index().url} class="btn btn-ghost justify-start px-3 text-ink-2">
                 <Icon name="back" size={16} /> Semua proyek

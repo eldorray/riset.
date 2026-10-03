@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Billing\Billing;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,9 +37,12 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $logo = Setting::read('app_logo');
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'logo_url' => is_string($logo) ? '/branding/logo?v='.rawurlencode(basename($logo)) : null,
             'auth' => [
                 'user' => $request->user() ? [
                     ...$request->user()->only(['id', 'name', 'email', 'avatar']),

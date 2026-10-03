@@ -1,4 +1,5 @@
 <script lang="ts">
+    import AppLogo from '@/components/AppLogo.svelte';
     import { Link, page, router } from '@inertiajs/svelte';
     import type { Snippet } from 'svelte';
     import AppHead from '@/components/AppHead.svelte';
@@ -9,7 +10,7 @@
     import admin from '@/routes/admin';
     import projects from '@/routes/projects';
 
-    type Section = 'billing' | 'ringkasan' | 'pengguna' | 'sitasi' | 'jenis' | 'template';
+    type Section = 'logo' | 'billing' | 'ringkasan' | 'pengguna' | 'sitasi' | 'jenis' | 'template';
 
     let {
         active,
@@ -25,6 +26,7 @@
         {
             label: 'Konfigurasi',
             items: [
+                { id: 'logo', label: 'Logo aplikasi', icon: 'file', href: '/admin/branding' },
                 { id: 'sitasi', label: 'Gaya sitasi', icon: 'list', href: admin.citationStyles.index().url },
                 { id: 'jenis', label: 'Jenis tulisan', icon: 'outline', href: admin.documentTypes.index().url },
                 { id: 'template', label: 'Template Word', icon: 'file', href: admin.templates.index().url },
@@ -38,7 +40,7 @@
 <div class="flex min-h-dvh flex-col bg-paper text-ink lg:flex-row">
     <header class="mobile-header border-b border-line bg-sunken px-4 py-3 lg:hidden">
         <div class="flex min-w-0 items-center justify-between gap-3">
-            <span class="font-display text-2xl font-medium">Riset<span class="text-primary">.</span></span>
+            <span class="font-display text-2xl font-medium"><AppLogo /></span>
             <span class="min-w-0 truncate text-sm text-ink-2">Admin · {title}</span>
         </div>
         <details class="mt-2">
@@ -53,7 +55,7 @@
     </header>
     <aside class="sticky top-0 hidden h-dvh w-62 shrink-0 flex-col gap-8 border-r border-line bg-sunken px-4 pt-7 pb-5 lg:flex overflow-y-auto">
         <div class="flex items-center gap-2.5 px-3">
-            <span class="font-display text-[30px] leading-none font-medium tracking-tight">Riset<span class="text-primary">.</span></span>
+            <span class="font-display text-[30px] leading-none font-medium tracking-tight"><AppLogo /></span>
             <span class="rounded border border-line-strong px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-ink-2">ADMIN</span>
         </div>
 

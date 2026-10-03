@@ -92,6 +92,9 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
 });
 
 Route::middleware(['auth', 'auth.session', 'admin'])->prefix('/admin')->name('admin.')->group(function () {
+    Route::get('/branding', [Admin\BrandingController::class, 'index'])->name('branding.index');
+    Route::post('/branding', [Admin\BrandingController::class, 'update'])->name('branding.update');
+    Route::delete('/branding', [Admin\BrandingController::class, 'destroy'])->name('branding.destroy');
     Route::get('/billing', [Admin\BillingController::class, 'index'])->name('billing.index');
     Route::put('/billing/payment', [Admin\BillingController::class, 'payment'])->name('billing.payment');
     Route::put('/billing/plans/{plan}', [Admin\BillingController::class, 'plan'])->name('billing.plan');
@@ -116,3 +119,5 @@ Route::middleware(['auth', 'auth.session', 'admin'])->prefix('/admin')->name('ad
     Route::put('/templates/{template}', [Admin\DocxTemplateController::class, 'update'])->name('templates.update');
     Route::delete('/templates/{template}', [Admin\DocxTemplateController::class, 'destroy'])->name('templates.destroy');
 });
+
+Route::get('/branding/logo', [Admin\BrandingController::class, 'logo'])->name('branding.logo');
