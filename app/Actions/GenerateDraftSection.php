@@ -78,6 +78,7 @@ final class GenerateDraftSection
         $prompt = implode("\n", [
             "Judul: {$project->title}",
             "Jenis tulisan: {$project->document_type->label()}",
+            $project->researchGapContext(),
             'Kerangka:',
             ...$outline,
             '',

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { router, useForm, useHttp } from '@inertiajs/svelte';
+    import { Link, router, useForm, useHttp } from '@inertiajs/svelte';
     import { errorMessage } from '@/lib/format';
     import Icon from '@/components/Icon.svelte';
     import AiCost from '@/components/AiCost.svelte';
@@ -215,7 +215,7 @@
                 Hanya referensi tersimpan yang dapat dipakai AI dan sitasi. Isi metadata sesuai sumber aslinya — yang tidak diketahui biarkan kosong.
             </p>
         </div>
-        <span class="font-mono text-[13px] text-ink-2">{references.length} tersimpan</span>
+        <div class="flex flex-wrap items-center gap-3"><span class="font-mono text-[13px] text-ink-2">{references.length} tersimpan</span><Link href={`/projects/${project.id}/research-gap`} class="btn btn-secondary">Analisis research gap</Link></div>
     </header>
 
     <section class="flex flex-col gap-3" aria-label="Cara menambah referensi">

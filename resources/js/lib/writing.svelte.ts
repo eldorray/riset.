@@ -1,7 +1,7 @@
 export type WritingResult = {
     key: string;
     label: string;
-    type: 'draft' | 'front' | 'outline';
+    type: 'draft' | 'front' | 'outline' | 'gap' | 'gap_source';
     status: string;
     error?: string;
     limitations?: string;

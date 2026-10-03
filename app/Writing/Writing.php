@@ -5,13 +5,16 @@ namespace App\Writing;
 use App\Actions\GenerateDraftSection;
 use App\Actions\GenerateFrontMatter;
 use App\Actions\GenerateOutline;
+use App\Actions\GenerateResearchGap;
 use App\Ai\AiException;
 use App\Billing\Billing;
 use App\Citation\Markers;
 use App\Jobs\WriteProjectStep;
 use App\Models\Project;
+use App\Models\Reference;
 use App\Models\User;
 use App\Models\WritingRun;
+use App\References\ArticleReader;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -26,6 +29,11 @@ final class Writing
             abort_if(WritingRun::query()->where('project_id', $project->id)->whereIn('status', ['queued', 'running'])->exists(), 409, 'Penulisan proyek ini masih berjalan.');
             abort_unless(app(Billing::class)->active($project->user), 402, 'Akses AI belum aktif. Buka Paket & Kredit.');
             $payload = [...$data, 'draft' => $project->draft ?? [], 'front' => $project->front_matter ?? []];
+            if ($data['kind'] === 'gap') {
+                $payload['source_versions'] = $project->references()->whereKey($data['references'])->get()
+                    ->mapWithKeys(fn (Reference $reference) => [$reference->id => GenerateResearchGap::fingerprint($reference, false)])->all();
+                $payload['project_title'] = $project->title;
+            }
             $payload['steps'] = $this->steps($project, $payload);
             $keys = array_column($payload['steps'], 'key');
             foreach (WritingRun::query()->where('project_id', $project->id)->where('has_suggestions', true)->get() as $pending) {
@@ -49,6 +57,12 @@ final class Writing
      */
     private function steps(Project $project, array $data): array
     {
+        if ($data['kind'] === 'gap') {
+            $steps = $project->references()->whereKey($data['references'])->get()->filter(fn (Reference $reference) => blank($reference->notes))
+                ->map(fn (Reference $reference) => ['type' => 'gap_source', 'key' => 'gap-source-'.$reference->id, 'reference_id' => $reference->id, 'label' => 'Membaca: '.$reference->title])->all();
+
+            return [...$steps, ['type' => 'gap', 'key' => 'research-gap', 'label' => 'Membandingkan sumber & menyusun kandidat gap']];
+        }
         if ($data['kind'] === 'front') {
             return [['type' => 'front', 'key' => $data['part'], 'label' => $data['part']]];
         }
@@ -159,7 +173,13 @@ final class Writing
                 $current = WritingRun::query()->lockForUpdate()->findOrFail($run->id);
                 abort_unless($current->status === 'running' && $current->cursor === $index, 409, 'Pekerjaan tidak lagi aktif.');
                 $this->checkStep($project, $current, $step);
-                if ($step['type'] === 'outline') {
+                if ($step['type'] === 'gap') {
+                    foreach ($result['analysis']['sources'] as $source) {
+                        $reference = $project->references()->whereKey($source['id'])->first();
+                        abort_unless($reference && GenerateResearchGap::fingerprint($reference) === $source['fingerprint'], 409, 'Sumber berubah selama analisis. Hasil sebelumnya tetap tersimpan.');
+                    }
+                    $project->forceFill(['gap_analysis' => [...$result['analysis'], 'id' => $run->id]])->save();
+                } elseif ($step['type'] === 'outline') {
                     $project->update(['outline' => $result['outline']]);
                     $payload = $current->payload;
                     $payload['steps'] = [...$payload['steps'], ...$this->steps($project, $payload)];
@@ -167,7 +187,7 @@ final class Writing
                 } elseif ($current->kind === 'manuscript') {
                     $this->saveResult($project, $step, $result, false);
                 }
-                $suggestion = $current->kind !== 'manuscript';
+                $suggestion = ! in_array($current->kind, ['manuscript', 'gap'], true);
                 $current->results = [...$current->results, [...$result, 'key' => $step['key'], 'label' => $step['label'], 'type' => $step['type'], 'status' => 'completed', 'review' => $suggestion ? 'pending' : null]];
                 $current->has_suggestions = $current->has_suggestions || $suggestion;
                 $current->consecutive_failures = 0;
@@ -186,8 +206,8 @@ final class Writing
                 }
                 $current->results = [...$current->results, ['key' => $step['key'], 'label' => $step['label'], 'type' => $step['type'], 'status' => 'failed', 'error' => $message]];
                 $current->consecutive_failures++;
-                if ($step['type'] === 'outline' || $current->consecutive_failures >= 2) {
-                    $current->error = $step['type'] === 'outline' ? $message : 'Dihentikan setelah 2 kegagalan berturut-turut.';
+                if ($step['type'] === 'outline' || $current->kind === 'gap' || $current->consecutive_failures >= 2) {
+                    $current->error = in_array($step['type'], ['outline', 'gap', 'gap_source'], true) ? $message : 'Dihentikan setelah 2 kegagalan berturut-turut.';
                 }
                 $this->advance($current);
             });
@@ -200,6 +220,16 @@ final class Writing
     /** @param array<string, mixed> $step */
     private function checkStep(Project $project, WritingRun $run, array $step): void
     {
+        if ($run->kind === 'gap') {
+            abort_unless($project->title === $run->payload['project_title'], 409, 'Judul proyek berubah selama analisis. Mulai analisis kembali.');
+            $references = $project->references()->whereKey($run->payload['references'])->get();
+            abort_unless($references->count() === count($run->payload['references']), 409, 'Referensi terpilih dihapus selama analisis.');
+            foreach ($references as $reference) {
+                abort_unless(GenerateResearchGap::fingerprint($reference, false) === $run->payload['source_versions'][$reference->id], 409, 'Metadata sumber berubah selama analisis. Mulai analisis kembali.');
+            }
+
+            return;
+        }
         if ($step['type'] === 'outline') {
             abort_if(($project->outline ?? []) !== [], 409, 'Kerangka telah berubah selama penulisan.');
         } elseif ($step['type'] === 'draft') {
@@ -220,6 +250,32 @@ final class Writing
      */
     private function generate(Project $project, WritingRun $run, array $step): array
     {
+        if ($step['type'] === 'gap_source') {
+            $reference = $project->references()->whereKey($step['reference_id'])->firstOrFail();
+            if (filled($reference->notes)) {
+                return ['reference_id' => $reference->id];
+            }
+            $mark = app(Billing::class)->mark();
+            try {
+                $notes = app(ArticleReader::class)->read($reference);
+            } catch (AiException $e) {
+                app(Billing::class)->refundTo($mark);
+
+                return ['reference_id' => $reference->id, 'source_error' => $e->getMessage(), 'limitations' => $e->getMessage()];
+            }
+            $query = $reference->newQuery()->whereKey($reference->id)->where('source_url', $reference->source_url);
+            $reference->notes === null ? $query->whereNull('notes') : $query->where('notes', $reference->notes);
+            abort_unless($query->update(['notes' => $notes]) > 0, 409, 'Catatan berubah saat artikel dibaca. Catatan Anda tetap tersimpan.');
+
+            return ['reference_id' => $reference->id];
+        }
+        if ($step['type'] === 'gap') {
+            $excluded = array_values(array_map(fn (array $result) => ['id' => $result['reference_id'], 'reason' => $result['source_error']], array_filter($run->results, fn (array $result) => isset($result['source_error']))));
+            $references = $project->references()->whereKey(array_diff($run->payload['references'], array_column($excluded, 'id')))->get()
+                ->filter(fn (Reference $reference) => filled($reference->notes));
+
+            return ['analysis' => app(GenerateResearchGap::class)($project, $run->payload['focus'], $references, $excluded)];
+        }
         if ($step['type'] === 'outline') {
             return ['outline' => app(GenerateOutline::class)($project)];
         }

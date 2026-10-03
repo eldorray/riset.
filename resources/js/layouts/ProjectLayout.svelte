@@ -12,7 +12,7 @@
     import projects from '@/routes/projects';
     import type { ProjectSummary } from '@/types';
 
-    type Section = 'ringkasan' | 'referensi' | 'sitasi' | 'kerangka' | 'draf' | 'naskah';
+    type Section = 'ringkasan' | 'gap' | 'referensi' | 'sitasi' | 'kerangka' | 'draf' | 'naskah';
 
     let {
         project,
@@ -33,6 +33,7 @@
     >([
         { id: 'ringkasan', label: 'Ringkasan', icon: 'grid', href: projects.show(project.id).url, meta: '' },
         { id: 'referensi', label: 'Referensi', icon: 'book', href: projects.references.index(project.id).url, meta: String(project.references_count) },
+        { id: 'gap', label: 'Research Gap', icon: 'outline', href: `/projects/${project.id}/research-gap`, meta: '' },
         { id: 'sitasi', label: 'Sitasi', icon: 'list', href: projects.citations(project.id).url, meta: '' },
         { id: 'kerangka', label: 'Kerangka', icon: 'outline', href: projects.outline(project.id).url, meta: project.chapters ? `${project.chapters} bab` : '' },
         { id: 'draf', label: 'Draf', icon: 'pen', href: projects.draft(project.id).url, meta: project.units ? `${project.filled}/${project.units}` : '' },

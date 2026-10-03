@@ -15,6 +15,7 @@ use App\Http\Controllers\OutlineController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReferenceController;
 use App\Http\Controllers\ReferenceSearchController;
+use App\Http\Controllers\ResearchGapController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\WritingController;
 use App\Http\Middleware\MeterAiCredits;
@@ -67,6 +68,10 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         Route::post('/references/{reference}/restore', [ReferenceController::class, 'restore'])->withTrashed()->name('references.restore');
 
         Route::get('/citations', [CitationController::class, 'index'])->name('citations');
+
+        Route::get('/research-gap', [ResearchGapController::class, 'show'])->name('research-gap');
+        Route::put('/research-gap', [ResearchGapController::class, 'update'])->name('research-gap.update');
+        Route::delete('/research-gap', [ResearchGapController::class, 'destroy'])->name('research-gap.destroy');
 
         Route::get('/outline', [OutlineController::class, 'show'])->name('outline');
         Route::put('/outline', [OutlineController::class, 'update'])->name('outline.update');

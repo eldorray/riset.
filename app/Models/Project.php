@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\GenerateResearchGap;
 use App\Citation\Style;
 use App\Enums\CitationStyle;
 use App\Enums\DocumentType;
@@ -37,6 +38,8 @@ use Illuminate\Support\Carbon;
  * @property CarbonImmutable|null $archived_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property array<string, mixed>|null $gap_analysis
+ * @property array<string, mixed>|null $research_gap
  */
 #[Fillable(['title', 'document_type', 'citation_style', 'docx_template_id', 'outline', 'draft', 'front_matter', 'ai_units'])]
 class Project extends Model
@@ -54,6 +57,8 @@ class Project extends Model
             'front_matter' => 'array',
             'ai_units' => 'array',
             'archived_at' => 'immutable_datetime',
+            'gap_analysis' => 'array',
+            'research_gap' => 'array',
         ];
     }
 
@@ -106,6 +111,23 @@ class Project extends Model
         return $this->document_type->usesBabNumbering()
             ? 'BAB '.self::roman($index + 1)
             : ($index + 1).'.';
+    }
+
+    /** Arah penelitian yang ditinjau pengguna, bukan sumber bukti untuk sitasi. */
+    public function researchGapContext(): string
+    {
+        if (! $this->research_gap) {
+            return '';
+        }
+        foreach ($this->research_gap['sources'] as $source) {
+            $reference = $this->references()->whereKey($source['id'])->first();
+            if (! $reference || GenerateResearchGap::fingerprint($reference) !== $source['fingerprint']) {
+                return '';
+            }
+        }
+
+        return 'Arah penelitian pilihan pengguna (bukan bukti kebaruan terverifikasi; klaim tetap harus didukung sumber yang diizinkan): '
+            .json_encode(array_intersect_key($this->research_gap, array_flip(['gap', 'question', 'contribution'])), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     /**

@@ -24,12 +24,13 @@ final class WritingController extends Controller
         Gate::authorize('update', $project);
         $units = array_column($project->units(), 'id');
         $data = $request->validate([
-            'kind' => ['required', Rule::in(['draft', 'draft_all', 'manuscript', 'front'])],
+            'kind' => ['required', Rule::in(['draft', 'draft_all', 'manuscript', 'front', 'gap'])],
+            'focus' => ['required_if:kind,gap', 'string', 'min:3', 'max:2000'],
             'unit' => ['required_if:kind,draft', 'string', Rule::in($units)],
             'units' => ['required_if:kind,draft_all', 'array', 'min:1', 'max:200'],
             'units.*' => ['string', 'distinct', Rule::in($units)],
             'part' => ['required_if:kind,front', 'string', Rule::in(array_column($project->document_type->frontMatter(), 'key'))],
-            'references' => ['present_if:kind,draft,draft_all,manuscript', 'array', 'max:40'],
+            'references' => ['present_if:kind,draft,draft_all,manuscript,gap', 'array', $request->input('kind') === 'gap' ? 'min:2' : 'min:0', $request->input('kind') === 'gap' ? 'max:10' : 'max:40'],
             'references.*' => ['integer', 'distinct', Rule::exists('project_references', 'id')->where('project_id', $project->id)->whereNull('deleted_at')],
             'mode' => ['required_if:kind,manuscript', Rule::in(['fill', 'rewrite'])],
             'target_words' => ['required_if:kind,manuscript', 'integer', 'between:1000,80000'],

@@ -3,6 +3,12 @@
 Aplikasi penyusunan skripsi, tesis, karya ilmiah, dan artikel berbasis AI — MVP dari `prd riset app.md`.
 Laravel 13 + Inertia 3 + Svelte 5 + Tailwind 4.
 
+## Research Gap
+
+Menu proyek setelah Referensi membandingkan 2–10 sumber: matriks penelitian, maksimal tiga kandidat gap, bukti dari catatan sumber, dan tautan pencarian verifikasi. Sumber tanpa catatan dicoba dibaca; sumber gagal ditampilkan dan dikeluarkan. Minimal dua sumber yang terbaca diperlukan. Analisis memakai antrean `writing` dan meter kredit yang sama, sehingga tetap berjalan ketika pengguna pindah menu.
+
+Pengguna meninjau dan menyunting kandidat sebelum menyimpannya sebagai arah kerangka/draf. Pilihan tidak menjadi bukti fakta atau jaminan kebaruan. Analisis ulang tidak menimpa pilihan; perubahan/penghapusan sumber membuat konteks lama diabaikan sampai ditinjau ulang. Deployment fitur ini memerlukan `php artisan migrate --force` dan restart worker.
+
 ## Alur
 
 1. Masuk dengan Google → buat proyek (judul + jenis tulisan).

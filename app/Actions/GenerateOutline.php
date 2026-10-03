@@ -39,6 +39,7 @@ final class GenerateOutline
         $prompt = implode("\n", [
             "Judul: {$project->title}",
             "Jenis tulisan: {$project->document_type->label()}",
+            $project->researchGapContext(),
             '',
             'Struktur bab yang wajib diikuti:',
             ...$lines,
