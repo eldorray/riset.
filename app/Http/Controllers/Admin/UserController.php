@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -69,6 +70,32 @@ final class UserController extends Controller
 
         $user->save();
         Inertia::flash('success', 'Akun diperbarui.');
+
+        return back();
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        abort_if($user->is($request->user()), 403, 'Anda tidak bisa menghapus akun Anda sendiri.');
+
+        $deleted = DB::transaction(function () use ($user): bool {
+            $target = User::query()->lockForUpdate()->findOrFail($user->id);
+            if (DB::table('writing_runs')->where('user_id', $target->id)->whereIn('status', ['queued', 'running'])->exists()
+                || DB::table('credit_transactions')->where('user_id', $target->id)->where('status', 'reserved')->exists()) {
+                return false;
+            }
+
+            // Remove grants first because they also reference billing requests.
+            DB::table('credit_grants')->where('user_id', $target->id)->delete();
+            DB::table('sessions')->where('user_id', $target->id)->delete();
+            DB::table('password_reset_tokens')->where('email', $target->email)->delete();
+            $target->delete();
+
+            return true;
+        });
+        Inertia::flash($deleted ? 'success' : 'error', $deleted
+            ? 'Akun pengguna dan seluruh data terkait telah dihapus.'
+            : 'Pengguna masih memiliki proses AI yang berjalan atau menunggu. Selesaikan atau hentikan proses tersebut sebelum menghapus akun.');
 
         return back();
     }

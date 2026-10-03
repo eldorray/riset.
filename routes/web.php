@@ -102,6 +102,7 @@ Route::middleware(['auth', 'auth.session', 'admin'])->prefix('/admin')->name('ad
     Route::get('/users', [Admin\UserController::class, 'index'])->name('users.index');
     Route::post('/users', [Admin\UserController::class, 'store'])->name('users.store');
     Route::put('/users/{user}', [Admin\UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [Admin\UserController::class, 'destroy'])->name('users.destroy');
 
     Route::get('/citation-styles', [Admin\CitationStyleController::class, 'index'])->name('citation-styles.index');
     Route::put('/citation-styles', [Admin\CitationStyleController::class, 'update'])->name('citation-styles.update');

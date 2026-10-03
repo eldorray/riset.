@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Link, router, useForm } from '@inertiajs/svelte';
+    import { Link, page, router, useForm } from '@inertiajs/svelte';
     import Icon from '@/components/Icon.svelte';
     import AdminLayout from '@/layouts/AdminLayout.svelte';
     import admin from '@/routes/admin';
@@ -26,6 +26,7 @@
 
     let query = $state('');
     let editing = $state<Row | null>(null);
+    let deleting = $state<number | null>(null);
 
     $effect(() => {
         query = search;
@@ -58,6 +59,16 @@
     function doSearch(event: SubmitEvent) {
         event.preventDefault();
         router.get(admin.users.index().url, query ? { q: query } : {}, { preserveState: true, replace: true });
+    }
+
+    function remove(row: Row) {
+        if (!confirm(`Hapus akun ${row.name} (${row.email})?\n\nSeluruh ${row.projects} proyek, referensi, draf, serta data subscription dan kredit pengguna akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.`)) return;
+        deleting = row.id;
+        router.delete(admin.users.destroy(row.id).url, {
+            preserveScroll: true,
+            onSuccess: () => { if (editing?.id === row.id) editing = null; },
+            onFinish: () => (deleting = null),
+        });
     }
 
     const pageLabel = (label: string) => label.replace('&laquo; Previous', 'Sebelumnya').replace('Next &raquo;', 'Berikutnya');
@@ -114,6 +125,9 @@
                                 <td class="px-5 py-1.5 text-right">
                                     <Link href={`/admin/billing?q=${encodeURIComponent(row.email)}`} class="btn btn-ghost">Subscription</Link>
                                     <button type="button" class="btn btn-ghost" onclick={() => edit(row)} aria-label="Ubah {row.name}">Ubah</button>
+                                    {#if row.id !== page.props.auth.user?.id}
+                                        <button type="button" class="btn btn-ghost text-danger" disabled={deleting !== null} onclick={() => remove(row)} aria-label="Hapus {row.name}">{deleting === row.id ? 'Menghapus…' : 'Hapus'}</button>
+                                    {/if}
                                 </td>
                             </tr>
                         {:else}

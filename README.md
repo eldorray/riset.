@@ -26,6 +26,8 @@ Generasi otomatis menolak penyimpanan jika bagian berubah selama AI berjalan. Si
 
 ## Panel admin (`/admin`)
 
+Menu Pengguna menyediakan hapus akun dengan konfirmasi. Akun beserta proyek, referensi, draf, subscription, kredit, sesi, dan token reset dihapus permanen. Admin tidak dapat menghapus akunnya sendiri; penghapusan ditunda selama penulisan AI masih menunggu/berjalan atau kredit AI masih direservasi.
+
 Ringkasan & status layanan · Pengguna (buat akun login email, ubah peran/password) · Gaya sitasi aktif · Struktur jenis tulisan · Template Word (font, spasi, margin, halaman judul, daftar isi, nomor halaman).
 Admin tidak dapat membuka isi proyek pengguna lain.
 
