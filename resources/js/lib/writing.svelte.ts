@@ -13,6 +13,7 @@ export type WritingSuggestion = WritingResult & {
     text: string;
     keywords?: string;
     sourceIds: number[];
+    evidence?: { id: number; quote: string }[];
 };
 export type WritingRun = {
     id: number;
@@ -27,6 +28,7 @@ export type WritingRun = {
     error: string | null;
     results: WritingResult[];
     target_words: number | null;
+    skipped?: string[];
     updated_at: string;
 };
 type WritingState = {

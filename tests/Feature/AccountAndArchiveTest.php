@@ -21,6 +21,18 @@ it('mengarsipkan dan memulihkan proyek tanpa menghapus isi', function () {
     $this->actingAs(User::factory()->create())->patch("/projects/{$project->id}/archive", ['archived' => true])->assertForbidden();
 });
 
+it('menyediakan tautan batalkan setelah mengarsipkan proyek', function () {
+    $project = Project::factory()->create();
+    $this->actingAs($project->user)->patch("/projects/{$project->id}/archive", ['archived' => true])
+        ->assertSessionHas('inertia.flash_data.undo', route('projects.unarchive', $project));
+    expect($project->fresh()->archived_at)->not->toBeNull();
+    $this->post(route('projects.unarchive', $project))->assertRedirect();
+    expect($project->fresh()->archived_at)->toBeNull();
+    $project->forceFill(['archived_at' => now()])->save();
+    $this->actingAs(User::factory()->create())->post(route('projects.unarchive', $project))->assertForbidden();
+    expect($project->fresh()->archived_at)->not->toBeNull();
+});
+
 it('memerlukan password lama dan konfirmasi untuk mengganti password', function () {
     $user = User::factory()->create(['password' => 'password-lama']);
     $this->actingAs($user)->put('/account/password', [

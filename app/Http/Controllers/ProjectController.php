@@ -41,12 +41,30 @@ final class ProjectController extends Controller
         $project->save();
         Inertia::flash('success', $data['archived'] ? 'Proyek diarsipkan. Isi tetap tersimpan.' : 'Proyek dipulihkan.');
 
+        if ($data['archived']) {
+            Inertia::flash('undo', route('projects.unarchive', $project));
+        }
+
+        return back();
+    }
+
+    public function unarchive(Project $project): RedirectResponse
+    {
+        Gate::authorize('update', $project);
+        $project->archived_at = null;
+        $project->save();
+        Inertia::flash('success', 'Proyek dipulihkan.');
+
         return back();
     }
 
     public function store(StoreProjectRequest $request): RedirectResponse
     {
-        $project = $request->user()?->projects()->create($request->validated());
+        $idea = trim((string) $request->validated('idea'));
+        $project = $request->user()?->projects()->create([
+            ...$request->safe()->only(['title', 'document_type']),
+            'research_design' => $idea !== '' ? ['ide' => $idea] : null,
+        ]);
         abort_if($project === null, 403);
 
         Inertia::flash('success', 'Proyek dibuat.');

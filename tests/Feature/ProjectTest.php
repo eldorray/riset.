@@ -92,6 +92,9 @@ it('menawarkan langkah berikutnya ke bagian kosong pertama', function () {
     $project = Project::factory()->withOutline()->create(['citation_style' => 'apa7', 'draft' => ['s1' => 'Sudah ditulis.']]);
     Reference::factory()->for($project)->create(['notes' => 'Catatan isi sumber.']);
     $this->actingAs($project->user)->get("/projects/{$project->id}")
+        ->assertInertia(fn ($page) => $page->where('readiness.next.label', 'Isi rancangan penelitian'));
+    $project->update(['research_design' => ['masalah' => 'Bagaimana literasi memengaruhi belajar?', 'pendekatan' => 'kuantitatif', 'analisis' => 'Regresi']]);
+    $this->get("/projects/{$project->id}")
         ->assertInertia(fn ($page) => $page->where('readiness.next.label', 'Lanjutkan draf')
             ->where('readiness.next.href', route('projects.draft', ['project' => $project, 'unit' => 's2'])));
     $this->get("/projects/{$project->id}/draft?unit=s2")->assertInertia(fn ($page) => $page->where('selectedUnit', 's2'));

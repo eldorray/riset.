@@ -25,6 +25,12 @@
         file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6',
         search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
         shield: 'M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z',
+        next: 'M9 6l6 6-6 6',
+        caret: 'M6 9l6 6 6-6',
+        more: 'M5 12h.01M12 12h.01M19 12h.01',
+        archive: 'M4 7h16v3H4zM6 10v9h12v-9M10 14h4',
+        gap: 'M4 5h6M14 5h6M4 12h4M16 12h4M4 19h6M14 19h6',
+        target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',
     } as const;
 
     export type IconName = keyof typeof paths;
@@ -44,7 +50,7 @@
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width={name === 'spinner' ? 2.5 : 1.75}
+    stroke-width={name === 'more' ? 3 : name === 'spinner' ? 2.5 : 1.75}
     stroke-linecap="round"
     stroke-linejoin="round"
     aria-hidden="true"

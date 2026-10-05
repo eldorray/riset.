@@ -1,3 +1,5 @@
+import type { ProjectSummary, Unit } from '@/types';
+
 const ROMAN: [string, number][] = [
     ['M', 1000],
     ['CM', 900],
@@ -38,4 +40,16 @@ export function chapterLabel(
 
 export function newId(): string {
     return Math.random().toString(36).slice(2, 12);
+}
+
+/** Sama dengan Project::blockedReason() di server: bab metode butuh rancangan, bab hasil butuh data. */
+export function unitBlocked(unit: Unit, project: Pick<ProjectSummary, 'design_ready' | 'has_data' | 'literature_study'>): string | null {
+    if (unit.kind === 'metode' && !project.design_ready) {
+        return 'Bagian metode ditulis dari rancangan penelitian Anda. Isi rumusan masalah, pendekatan, dan teknik analisis di Rancangan penelitian.';
+    }
+    if (unit.kind === 'empiris' && !project.literature_study && !project.has_data) {
+        return 'Bagian hasil, pembahasan, dan kesimpulan memerlukan data atau temuan penelitian Anda. AI tidak menulis hasil tanpa data.';
+    }
+
+    return null;
 }

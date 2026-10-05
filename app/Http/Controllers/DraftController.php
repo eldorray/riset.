@@ -37,7 +37,8 @@ final class DraftController extends Controller
                 'title' => $reference->title,
                 'source_url' => $reference->source_url,
                 'in_text' => $style->isComplete($reference) ? $style->label($reference) : null,
-                'has_notes' => filled($reference->notes),
+                'has_notes' => $reference->notesUsable(),
+                'notes_pending' => $reference->notesPending(),
                 'note_chars' => mb_strlen($reference->notes ?? ''),
                 'keywords' => $reference->metadata['keywords'] ?? [],
             ]),
@@ -47,7 +48,8 @@ final class DraftController extends Controller
     /** Tidak menyimpan apa pun: hasil AI ditinjau pengguna dulu, draf tersimpan tetap utuh (AC F-06). */
     public function generate(GenerateDraftRequest $request, Project $project, GenerateDraftSection $generate): JsonResponse
     {
-        $unit = collect($project->units())->firstWhere('id', $request->validated('unit'));
+        $unit = $project->unit((string) $request->validated('unit'));
+        abort_if($unit === null, 409, 'Kerangka berubah. Muat ulang halaman.');
         $references = $project->references()->whereKey($request->validated('references'))->get();
 
         try {

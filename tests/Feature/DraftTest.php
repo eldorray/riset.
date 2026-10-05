@@ -2,11 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Ai\AiException;
 use App\Models\Project;
 use App\Models\Reference;
 use App\Models\User;
-use App\References\ArticleReader;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
@@ -43,7 +41,7 @@ it('menyatakan keterbatasan dari AI apa adanya', function () {
     Http::fake(['ai.test/*' => Http::response(['choices' => [['message' => ['content' => json_encode(['text' => 'Teks umum.', 'limitations' => 'Sumber tidak cukup.'])]]]])]);
 
     $this->actingAs($this->project->user)
-        ->postJson("/projects/{$this->project->id}/draft/generate", ['unit' => 'c2', 'references' => []])
+        ->postJson("/projects/{$this->project->id}/draft/generate", ['unit' => 's2', 'references' => []])
         ->assertOk()
         ->assertJsonPath('limitations', 'Sumber tidak cukup.');
 });
@@ -160,13 +158,10 @@ it('menempatkan sitasi AI sebelum titik dan mempertahankan sumber tiap kalimat',
 
 it('menolak generasi dari metadata saja dan menjelaskan kebutuhan catatan sumber', function () {
     $this->reference->update(['notes' => null]);
-    $reader = Mockery::mock(ArticleReader::class);
-    $reader->shouldReceive('read')->once()->andThrow(new AiException('Isi artikel tidak berhasil dibaca.'));
-    $this->app->instance(ArticleReader::class, $reader);
     Http::fake();
     $this->actingAs($this->project->user)
         ->postJson("/projects/{$this->project->id}/draft/generate", ['unit' => 's2', 'references' => [$this->reference->id]])
-        ->assertStatus(502)->assertJsonPath('message', 'Referensi “'.$this->reference->title.'”: Isi artikel tidak berhasil dibaca.');
+        ->assertStatus(502)->assertJsonPath('message', 'Referensi terpilih belum punya catatan yang sudah ditinjau: “'.$this->reference->title.'” (belum ada catatan). Isi atau tinjau catatannya di Referensi lalu coba lagi.');
     Http::assertNothingSent();
 });
 

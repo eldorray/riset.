@@ -46,16 +46,19 @@ it('blocks local URLs without calling AI and preserves old notes', function () {
     Http::assertNothingSent();
 });
 
-it('automatically reads missing notes before generating a cited draft', function () {
+it('does not auto-read articles while drafting and refuses sources without reviewed notes', function () {
     $project = Project::factory()->withOutline()->create();
-    $reference = Reference::factory()->for($project)->create();
+    $missing = Reference::factory()->for($project)->create();
+    $pending = Reference::factory()->for($project)->create(['title' => 'Sumber catatan AI', 'notes' => Reference::AI_NOTES_PENDING."\nDasar: Teks lengkap\n\nLiterasi mendukung belajar."]);
     $reader = Mockery::mock(ArticleReader::class);
-    $reader->shouldReceive('read')->once()->andReturn('Catatan AI berdasarkan teks PDF: literasi mendukung belajar.');
+    $reader->shouldNotReceive('read');
     $this->app->instance(ArticleReader::class, $reader);
-    Http::fake(['ai.test/*' => Http::response(['choices' => [['message' => ['content' => json_encode(['text' => "Literasi mendukung belajar [@{$reference->id}].", 'limitations' => ''])]]]])]);
-    $this->actingAs($project->user)->postJson("/projects/{$project->id}/draft/generate", ['unit' => 's2', 'references' => [$reference->id]])
-        ->assertOk()->assertJsonPath('text', "Literasi mendukung belajar [@{$reference->id}].");
-    expect($reference->fresh()->notes)->toContain('Catatan AI');
+    Http::fake();
+    $this->actingAs($project->user)->postJson("/projects/{$project->id}/draft/generate", ['unit' => 's2', 'references' => [$missing->id, $pending->id]])
+        ->assertStatus(502)
+        ->assertJsonPath('message', fn (string $message): bool => str_contains($message, 'belum ada catatan') && str_contains($message, 'catatan AI belum ditinjau'));
+    expect($missing->fresh()->notes)->toBeNull();
+    Http::assertNothingSent();
 });
 
 it('does not let another user read a project reference', function () {
@@ -70,10 +73,11 @@ it('continues drafts and manuscript sections with readable sources and reports e
     $unreadable = Reference::factory()->for($project)->create(['notes' => null]);
     $readable = Reference::factory()->for($project)->create(['notes' => 'Literasi mendukung pembelajaran.']);
     $reader = Mockery::mock(ArticleReader::class);
-    $reader->shouldReceive('read')->once()->andThrow(new AiException('Isi artikel tidak berhasil dibaca.'));
+    $reader->shouldNotReceive('read');
     $this->app->instance(ArticleReader::class, $reader);
     Http::fake(['ai.test/*' => Http::response(['choices' => [['message' => ['content' => json_encode([
         'text' => "Literasi mendukung pembelajaran [@{$readable->id}].",
+        'evidence' => [['id' => $readable->id, 'quote' => 'Literasi mendukung pembelajaran.']],
         'limitations' => '',
     ])]]]])]);
 
@@ -81,7 +85,8 @@ it('continues drafts and manuscript sections with readable sources and reports e
         'unit' => 's2', 'references' => [$unreadable->id, $readable->id], 'target_words' => 300, 'mode' => 'fill',
     ])->assertOk()->assertJsonPath('text', "Literasi mendukung pembelajaran [@{$readable->id}].");
 
-    expect($response->json('limitations'))->toContain($unreadable->title, 'tidak digunakan', 'Isi artikel tidak berhasil dibaca.');
+    expect($response->json('limitations'))->toContain($unreadable->title, 'tidak dipakai', 'belum ada catatan')
+        ->and($response->json('evidence'))->toBe([['id' => $readable->id, 'quote' => 'Literasi mendukung pembelajaran.']]);
     expect($unreadable->fresh()->notes)->toBeNull();
     Http::assertSent(fn ($request) => str_contains($request['messages'][1]['content'], "[@{$readable->id}]")
         && ! str_contains($request['messages'][1]['content'], "[@{$unreadable->id}]"));

@@ -2,6 +2,7 @@
     import { Link, useForm } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import FlashMessage from '@/components/FlashMessage.svelte';
+    import AppHeader from '@/components/AppHeader.svelte';
     type Plan = { id: number; name: string; price: number; credits: number };
     type Grant = { id: number; name: string; remaining: number; starts_at: string; expires_at: string };
     type Purchase = { id: number; name: string; price: number; status: string; note: string | null };
@@ -26,9 +27,9 @@
 </script>
 
 <AppHead title="Paket & Kredit" />
-<div class="min-h-dvh bg-paper px-4 py-8 text-ink sm:px-8">
-    <main class="mx-auto flex max-w-5xl flex-col gap-6">
-        <Link href="/projects" class="btn btn-ghost self-start">← Proyek saya</Link>
+<div class="min-h-dvh bg-paper text-ink">
+    <AppHeader />
+    <main class="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8 sm:px-8">
         <header class="flex flex-col gap-2"><h1 class="font-display text-4xl font-medium">Paket & Kredit</h1><p class="text-ink-2">Aktivasi dan pembayaran diperiksa manual oleh admin. Semua waktu ditampilkan dalam WIB.</p></header>
         <section class="card grid gap-5 p-6 sm:grid-cols-3" aria-label="Akses saat ini">
             <div><p class="section-label">Akses AI</p><p class="mt-2 text-xl font-semibold">{account.unlimited ? 'Unlimited' : account.active ? 'Aktif' : 'Belum aktif / berakhir'}</p></div>
@@ -59,11 +60,11 @@
         </section>
         {#if pending}<p role="status" class="alert alert-info">Permintaan Anda menunggu admin. Gunakan instruksi pembayaran di atas; pengajuan belum mengaktifkan akses.</p>{/if}
         {#each Object.values(form.errors) as error}<p role="alert" class="error">{error}</p>{/each}
-        <p class="help">Pemakaian: pembulatan ke atas dari input token ÷ 2.000 + output token ÷ 250, termasuk reasoning. Sebelum AI berjalan, sebagian kredit direservasi untuk batas maksimum lalu selisihnya dikembalikan. Kegagalan tidak ditagihkan. Membaca dan menyimpan catatan artikel adalah proses tersendiri: catatan yang berhasil disimpan tetap dihitung jika draf berikutnya gagal.</p>
+        <section id="cara-hitung" class="flex scroll-mt-4 flex-col gap-1.5" aria-labelledby="cara-hitung-title"><h2 id="cara-hitung-title" class="section-label">Cara hitung kredit</h2><p class="help">Perkiraan di samping tombol AI adalah perkiraan teks, belum termasuk reasoning dan pembacaan sumber tambahan; pemakaian aktual bisa lebih tinggi. Pemakaian: pembulatan ke atas dari input token ÷ 2.000 + output token ÷ 250, termasuk reasoning. Sebelum AI berjalan, sebagian kredit direservasi untuk batas maksimum lalu selisihnya dikembalikan. Kegagalan tidak ditagihkan. Membaca dan menyimpan catatan artikel adalah proses tersendiri: catatan yang berhasil disimpan tetap dihitung jika draf berikutnya gagal.</p></section>
         <section class="card flex flex-col gap-3 p-5"><h2 class="section-label">Permintaan Anda</h2>{#each requests as purchase (purchase.id)}<div class="border-t border-line pt-3 text-sm"><p class="font-semibold">#{purchase.id} · {purchase.name} · {money(purchase.price)} · {labels[purchase.status] ?? purchase.status}</p>{#if purchase.note}<p class="text-ink-2">{purchase.note}</p>{/if}</div>{:else}<p class="help">Belum ada permintaan.</p>{/each}</section>
         <section class="card flex flex-col gap-3 p-5"><h2 class="section-label">Riwayat kredit</h2>
             {#each history.data as entry (entry.id)}<div class="flex flex-wrap justify-between gap-3 border-t border-line pt-3 text-sm"><div><p class="font-semibold">{labels[entry.kind] ?? entry.kind} · {labels[entry.status] ?? entry.status}</p><p class="text-ink-2">{entry.description}</p><p class="text-xs text-ink-3">{date(entry.created_at)}{#if entry.input_tokens !== null} · {entry.input_tokens} input / {entry.output_tokens ?? 0} output token{/if}</p></div><span class="font-mono">{entry.status === 'reserved' ? `${entry.reserved} direservasi` : `${entry.credits > 0 ? '+' : ''}${entry.credits} kredit`}</span></div>{:else}<p class="help">Belum ada pemakaian.</p>{/each}
-            <nav aria-label="Halaman riwayat" class="flex flex-wrap gap-2">{#each history.links as link, i (i)}{#if link.url}<Link href={link.url} preserveScroll class="btn btn-secondary" aria-current={link.active ? 'page' : undefined}>{link.label.replace('&laquo; Previous', 'Sebelumnya').replace('Next &raquo;', 'Berikutnya')}</Link>{/if}{/each}</nav>
+            <nav aria-label="Halaman riwayat" class="flex flex-wrap gap-2">{#each history.links as link, i (i)}{#if link.url}<Link href={link.url} preserveScroll class="btn {link.active ? 'btn-primary' : 'btn-secondary'}" aria-current={link.active ? 'page' : undefined}>{link.label.replace('&laquo; Previous', 'Sebelumnya').replace('Next &raquo;', 'Berikutnya')}</Link>{/if}{/each}</nav>
         </section>
     </main>
 </div>

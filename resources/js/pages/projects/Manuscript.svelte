@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Link, router, useForm } from '@inertiajs/svelte';
-    import { onDestroy, untrack } from 'svelte';
+    import { onDestroy, onMount, untrack } from 'svelte';
     import { createWriting, type WritingSuggestion } from '@/lib/writing.svelte';
     import Icon from '@/components/Icon.svelte';
     import AiCost from '@/components/AiCost.svelte';
@@ -24,6 +24,8 @@
         ai_unreviewed: number;
         empty_href: string;
         review_href: string;
+        design_ready: boolean;
+        needs_data: boolean;
     };
 
     let {
@@ -51,24 +53,23 @@
         readiness: Readiness;
         targetWords: number;
         aiUnits: string[];
-        references: { id: number; label: string; has_notes: boolean; note_chars: number }[];
+        references: { id: number; label: string; has_notes: boolean; notes_pending: boolean; note_chars: number }[];
     } = $props();
 
     // ——— Naskah lengkap otomatis ———
     let target = $state(0);
-    let mode = $state<'fill' | 'rewrite'>('fill');
     let chosen = $state<number[]>([]);
     const writing = createWriting(() => project.id);
     const run = $derived(writing.active && writing.run?.kind === 'manuscript' ? writing.run : null);
     let startError = $state('');
     const summary = $derived(startError || (writing.run?.kind === 'manuscript' && !writing.active
-        ? `${writing.run.done} dari ${writing.run.total} bagian diproses. ${writing.run.error ?? ''} Tinjau hasil sebelum diajukan. ${writing.run.results.filter((r) => r.error).map((r) => `${r.label}: ${r.error}`).join('; ')}` : ''));
+        ? `${writing.run.done} dari ${writing.run.total} bagian diproses. ${writing.run.error ?? ''} Tinjau hasil sebelum diajukan. ${writing.run.results.filter((r) => r.error).map((r) => `${r.label}: ${r.error}`).join('; ')}${writing.run.skipped?.length ? ` Dilewati karena butuh rancangan atau data penelitian: ${writing.run.skipped.join(', ')}.` : ''}` : ''));
     const warnings = $derived((writing.run?.kind === 'manuscript' ? writing.run.results : []).filter((r) => r.limitations).map((r) => `${r.label}: ${r.limitations}`));
     const completedTarget = $derived(writing.run?.kind === 'manuscript' ? writing.run.target_words : null);
 
     $effect(() => {
         const initialTarget = targetWords;
-        const ids = references.map((r) => r.id);
+        const ids = references.filter((r) => r.has_notes).map((r) => r.id);
         untrack(() => {
             target ||= initialTarget;
             chosen = chosen.length ? chosen : ids;
@@ -82,9 +83,8 @@
             startError = 'Simpan perubahan bagian awal dan pakai atau buang usulan AI sebelum membuat naskah lengkap.';
             return;
         }
-        if (mode === 'rewrite' && !confirm('Semua bagian yang sudah berisi akan ditulis ulang. Lanjutkan?')) return;
         startError = '';
-        try { await writing.start({ kind: 'manuscript', references: $state.snapshot(chosen), target_words: target, mode }); }
+        try { await writing.start({ kind: 'manuscript', references: $state.snapshot(chosen), target_words: target, mode: 'fill' }); }
         catch (error) { startError = (error as Error).message; }
     }
 
@@ -115,6 +115,8 @@
 
     const type = $derived(project.document_type.label.toLowerCase());
     const checks = $derived([
+        { label: 'Rancangan penelitian', ok: readiness.design_ready, detail: readiness.design_ready ? 'Masalah, pendekatan, dan analisis terisi' : 'Belum lengkap', href: `/projects/${project.id}/rancangan` },
+        ...(readiness.needs_data ? [{ label: 'Data penelitian', ok: false, detail: 'Belum diisi · bab hasil tidak ditulis AI', href: `/projects/${project.id}/rancangan#data` }] : []),
         { label: 'Kerangka tersimpan', ok: project.chapters > 0, detail: `${project.chapters} bab`, href: projects.outline(project.id).url },
         { label: 'Draf terisi', ok: readiness.units > 0 && readiness.filled === readiness.units, detail: `${readiness.filled} dari ${readiness.units} bagian`, href: readiness.empty_href },
         { label: 'Bagian awal', ok: readiness.front_missing.length === 0, detail: `${readiness.front_parts - readiness.front_missing.length} dari ${readiness.front_parts}`, href: '#bagian-awal' },
@@ -130,6 +132,10 @@
     onDestroy(offBefore);
 
     const allOk = $derived(checks.every((c) => c.ok));
+    const okCount = $derived(checks.filter((c) => c.ok).length);
+    // Pratinjau naskah penuh sangat panjang: terbuka di layar lebar, dilipat di ponsel/tablet.
+    let previewOpen = $state(true);
+    onMount(() => (previewOpen = window.matchMedia('(min-width: 80rem)').matches));
 
     async function generate(key: string) {
         if (form.isDirty) { localFailures[key] = 'Simpan perubahan bagian awal terlebih dahulu.'; return; }
@@ -208,7 +214,7 @@
                         <span class="shrink-0 rounded-full border border-ai px-1.5 font-sans text-[11px] leading-4 text-ai">AI</span> Buat naskah lengkap dengan AI
                     </h2>
                     <p class="text-sm leading-normal text-ink-2">
-                        AI menyusun kerangka bila belum ada, menulis setiap bagian, lalu abstrak{parts.length > 1 ? ' dan bagian awal lainnya' : ''}. Tulisan memakai kata-kata sendiri (parafrase) dengan sitasi dari referensi terpilih — bukan menyalin kalimat sumber.
+                        AI menyusun kerangka bila belum ada, mengisi bagian yang masih kosong, lalu abstrak{parts.length > 1 ? ' dan bagian awal lainnya' : ''}. Bagian yang sudah berisi tidak ditimpa. Bab metode ditulis dari rancangan, bab hasil dan kesimpulan hanya dari data penelitian Anda; bagian yang belum punya rancangan atau data dilewati.
                     </p>
                 </div>
 
@@ -218,11 +224,12 @@
                         <input id="target" type="number" min="1000" max="80000" step="500" class="input" bind:value={target} disabled={run !== null} aria-describedby="target-help" />
                         <span id="target-help" class="help">Saat ini {readiness.words.toLocaleString('id')} kata. Dibagi rata ke setiap bagian.</span>
                     </div>
-                    <fieldset class="flex flex-col gap-1" disabled={run !== null}>
-                        <legend class="label mb-1.5">Bagian yang sudah berisi</legend>
-                        <label class="flex min-h-10 items-center gap-2.5 text-sm"><input type="radio" value="fill" bind:group={mode} class="size-4.5 accent-primary" /> Biarkan — hanya isi yang kosong</label>
-                        <label class="flex min-h-10 items-center gap-2.5 text-sm"><input type="radio" value="rewrite" bind:group={mode} class="size-4.5 accent-primary" /> Tulis ulang semua dengan parafrase</label>
-                    </fieldset>
+                    <div class="flex flex-col gap-1.5 text-sm">
+                        <span class="label">Rancangan & data</span>
+                        <span class={readiness.design_ready ? 'text-ok' : 'text-warn'}>{readiness.design_ready ? 'Rancangan penelitian terisi.' : 'Rancangan belum lengkap: bab metode akan dilewati.'}</span>
+                        {#if readiness.needs_data}<span class="text-warn">Data penelitian belum diisi: bab hasil, pembahasan, dan kesimpulan akan dilewati.</span>{/if}
+                        <Link href={`/projects/${project.id}/rancangan`} class="self-start text-primary underline">Buka Rancangan penelitian</Link>
+                    </div>
                 </div>
 
                 <details class="rounded-lg bg-paper px-4 py-3">
@@ -233,9 +240,9 @@
                     <div class="flex flex-col pt-2">
                         {#each references as reference (reference.id)}
                             <label class="flex min-h-10 items-center gap-2.5 text-[13px]">
-                                <input type="checkbox" value={reference.id} bind:group={chosen} class="size-4.5 accent-primary" disabled={run !== null} />
+                                <input type="checkbox" value={reference.id} bind:group={chosen} class="size-4.5 accent-primary" disabled={run !== null || !reference.has_notes} />
                                 {reference.label}
-                                {#if !reference.has_notes}<span class="text-[11px] text-ink-3">(tanpa catatan isi)</span>{/if}
+                                {#if !reference.has_notes}<span class="text-[11px] text-ink-3">({reference.notes_pending ? 'catatan AI belum ditinjau' : 'tanpa catatan isi'})</span>{/if}
                             </label>
                         {/each}
                     </div>
@@ -258,7 +265,7 @@
                         <button type="button" class="btn btn-primary" onclick={buildAll} disabled={writing.busy || target < 1000 || target > 80000 || !Number.isFinite(target) || form.isDirty || Object.keys(suggestions).length > 0}>
                             Buat naskah lengkap {type}
                         </button>
-                        <span class="text-xs leading-normal text-ink-3">Tidak ada jaminan lolos pemeriksaan plagiarisme atau pendeteksi AI; ikuti kebijakan kampus tentang penggunaan AI.</span>
+                        <span class="text-xs leading-normal text-ink-3">Hasil AI adalah draf bantu yang wajib Anda tinjau. Ikuti kebijakan kampus tentang penggunaan AI dan cantumkan penggunaannya bila diminta.</span>
                     </div>
                 {/if}
 
@@ -273,13 +280,16 @@
                     <div class="alert alert-warn" role="status"><div><p class="font-semibold">Keterbatasan hasil AI</p><ul class="list-disc pl-5">{#each warnings as warning, i (i)}<li>{warning}</li>{/each}</ul></div></div>
                 {/if}
                 {#if readiness.ai_unreviewed}
-                    <p class="text-[13px] text-ai">{readiness.ai_unreviewed} bagian ditulis AI dan belum ditinjau. Sunting atau tandai "sudah diperiksa" di halaman Draf.</p>
+                    <p class="text-[13px] text-ai">{readiness.ai_unreviewed} bagian ditulis AI dan belum ditinjau. Sunting atau tandai "sudah ditinjau" di halaman Draf.</p>
                 {/if}
             </details>
 
             <section id="bagian-awal" class="flex flex-col gap-4" aria-labelledby="front-title">
                 <div class="flex flex-wrap items-center justify-between gap-4">
-                    <h2 id="front-title" class="font-display text-[26px] font-medium">Bagian awal</h2>
+                    <div class="flex flex-col">
+                        <h2 id="front-title" class="font-display text-[26px] font-medium">Bagian awal</h2>
+                        <AiCost inputCharacters={Math.min(30000, readiness.words * 6)} outputWords={250} detail="Perkiraan untuk satu bagian awal naskah yang dibuat dengan AI." />
+                    </div>
                     <div class="flex items-center gap-3">
                         {#if form.isDirty}<span class="text-[13px] font-medium text-warn">Perubahan belum disimpan</span>{/if}
                         <button type="button" class="btn btn-primary" onclick={save} disabled={!form.isDirty || form.processing || run !== null}>Simpan bagian awal</button>
@@ -293,14 +303,13 @@
                                 <div class="flex flex-col gap-0.5">
                                     <h3 class="text-base font-semibold">{part.label}</h3>
                                     <span class="text-[13px] text-ink-2">{part.hint}</span>
-                                    {#if part.ai}<span class="text-sm text-ai">AI · belum ditinjau</span><button type="button" class="btn btn-secondary" disabled={form.isDirty || run !== null || Object.keys(suggestions).length > 0} onclick={() => router.put(projects.manuscript.update(project.id).url, { parts: { [part.key]: form.parts[part.key] }, base: { [part.key]: frontBaseline[part.key] } }, { preserveScroll: true })}>Sudah diperiksa</button>{/if}
+                                    {#if part.ai}<span class="text-sm text-ai">AI · belum ditinjau</span><button type="button" class="btn btn-secondary self-start" disabled={form.isDirty || run !== null || Object.keys(suggestions).length > 0} onclick={() => router.put(projects.manuscript.update(project.id).url, { parts: { [part.key]: form.parts[part.key] }, base: { [part.key]: frontBaseline[part.key] } }, { preserveScroll: true })}>Tandai sudah ditinjau</button>{/if}
                                 </div>
                                 <button type="button" class="btn btn-secondary" onclick={() => generate(part.key)} disabled={writing.busy || !!suggestions[part.key]}>
                                     {#if generating === part.key}<Icon name="spinner" size={16} class="text-ai" /> Menyusun…{:else}<span class="rounded-full border border-current px-1.5 font-mono text-[10px] leading-3.5">AI</span> {aiLabel(part.key)}{/if}
                                 </button>
                             </div>
 
-                            <AiCost inputCharacters={Math.min(30000, readiness.words * 6)} outputWords={250} detail="Perkiraan untuk satu bagian awal naskah." />
                             <label class="sr-only" for="part-{part.key}">{part.label}</label>
                             <textarea id="part-{part.key}" rows={part.key === 'kata_pengantar' ? 8 : 6} class="input font-display text-[17px] leading-7" bind:value={form.parts[part.key].text} disabled={run !== null} placeholder="Tulis {part.label.toLowerCase()} di sini, atau minta bantuan AI."></textarea>
 
@@ -319,7 +328,7 @@
                                 {@const suggestion = suggestions[part.key]}
                                 <section aria-label="Usulan AI" class="flex flex-col gap-3 rounded-[10px] border border-ai-line bg-ai-wash px-4.5 py-4">
                                     <span class="flex items-center gap-2 text-[13px] font-semibold text-ai">
-                                        <span class="rounded-full border border-ai px-1.5 font-mono text-[11px] leading-3.5">AI</span> Dihasilkan AI · belum diperiksa
+                                        <span class="rounded-full border border-ai px-1.5 font-mono text-[11px] leading-3.5">AI</span> Usulan AI · belum ditinjau
                                     </span>
                                     {#each paragraphs(suggestion.text) as paragraph, i (i)}<p class="font-display text-[17px] leading-7">{paragraph}</p>{/each}
                                     {#if suggestion.keywords}<p class="text-sm"><span class="font-semibold">{part.keywords}:</span> {suggestion.keywords}</p>{/if}
@@ -327,7 +336,7 @@
                                         <p class="rounded-lg border border-ai-line bg-surface px-3.5 py-2.5 text-[13px]"><span class="font-semibold">Keterbatasan:</span> {suggestion.limitations}</p>
                                     {/if}
                                     <div class="flex gap-2.5">
-                                        <button type="button" class="btn btn-primary" onclick={() => accept(part.key)}>Pakai teks ini</button>
+                                        <button type="button" class="btn btn-primary" onclick={() => accept(part.key)}>Pakai usulan</button>
                                         <button type="button" class="btn btn-ghost text-danger" onclick={() => discard(part.key)}>Buang</button>
                                     </div>
                                 </section>
@@ -337,12 +346,12 @@
                 {/each}
             </section>
 
-            <section class="flex flex-col gap-3" aria-labelledby="preview-title">
-                <div class="flex items-baseline justify-between gap-3">
-                    <h2 id="preview-title" class="font-display text-[26px] font-medium">Pratinjau naskah</h2>
+            <details class="group" bind:open={previewOpen}>
+                <summary class="flex min-h-11 cursor-pointer list-none flex-wrap items-baseline justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                    <h2 class="flex items-center gap-2 font-display text-[26px] font-medium"><Icon name="caret" size={20} class="-rotate-90 transition-transform group-open:rotate-0 motion-reduce:transition-none" /> Pratinjau naskah</h2>
                     <span class="font-mono text-xs text-ink-3">{template ?? 'format bawaan'} · {styleLabel}</span>
-                </div>
-                <article class="card flex flex-col gap-6 px-5 py-6 sm:px-10 sm:py-10 lg:px-14 lg:py-12 font-display text-[17px] leading-[30px]">
+                </summary>
+                <article class="card mt-3 flex flex-col gap-6 px-5 py-6 sm:px-10 sm:py-10 lg:px-14 lg:py-12 font-display text-[17px] leading-[30px]">
                     <h3 class="text-center text-[26px] leading-tight font-medium">{project.title}</h3>
 
                     {#each parts as part (part.key)}
@@ -390,11 +399,11 @@
                         </div>
                     {/if}
                 </article>
-            </section>
+            </details>
         </div>
 
-        <aside class="card flex flex-col gap-3 px-5 py-5 xl:sticky xl:top-6">
-            <h2 class="section-label">Daftar periksa</h2>
+        <aside class="card order-first flex flex-col gap-3 px-5 py-5 xl:sticky xl:top-6 xl:order-none">
+            <h2 class="section-label">Daftar periksa · {okCount} dari {checks.length} siap</h2>
             <ul class="flex flex-col">
                 {#each checks as check (check.label)}
                     <li class="border-b border-sunken last:border-b-0">

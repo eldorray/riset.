@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Citation\Style;
 use App\Models\Project;
+use App\Models\Reference;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -55,6 +56,7 @@ final class ReferenceRequest extends FormRequest
             'source_name' => ['nullable', 'string', 'max:255'],
             'input_method' => ['nullable', Rule::in(['manual', 'search'])],
             'notes' => ['nullable', 'string', 'max:5000'],
+            'notes_reviewed' => ['boolean'],
             'metadata' => ['required', 'array'],
             'metadata.open_access_url' => ['nullable', 'url:http,https', 'max:2048'],
             'metadata.type' => ['required', Rule::in(array_keys(Style::TYPES))],
@@ -87,7 +89,8 @@ final class ReferenceRequest extends FormRequest
             'source_url' => $data['source_url'],
             'source_name' => $data['source_name'] ?? null,
             'input_method' => $data['input_method'] ?? 'manual',
-            'notes' => $data['notes'] ?? null,
+            // Catatan AI baru boleh dipakai untuk sitasi setelah pengguna menyatakan sudah memeriksanya.
+            'notes' => isset($data['notes']) && $this->boolean('notes_reviewed') ? Reference::markReviewed($data['notes']) : ($data['notes'] ?? null),
             'metadata' => array_filter($data['metadata'], fn ($v) => $v !== null && $v !== '' && $v !== []),
         ];
     }

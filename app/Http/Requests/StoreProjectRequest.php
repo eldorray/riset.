@@ -18,6 +18,8 @@ final class StoreProjectRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'document_type' => ['required', Rule::enum(DocumentType::class)],
+            // Ringkasan diskusi judul (masalah, objek, data, metode) agar tidak hilang setelah judul dipilih.
+            'idea' => ['nullable', 'string', 'max:6000'],
         ];
     }
 

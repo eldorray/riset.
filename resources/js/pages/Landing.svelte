@@ -78,7 +78,7 @@
         <nav aria-label="Navigasi utama" class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
             <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[30px] font-medium tracking-tight"><AppLogo /></Link>
             <div class="hidden items-center gap-7 text-sm font-medium text-ink-2 md:flex"><a href="#fitur" class="hover:text-primary">Fitur</a><a href="#cara-kerja" class="hover:text-primary">Cara kerja</a><a href="#paket" class="hover:text-primary">Paket</a><a href="#faq" class="hover:text-primary">FAQ</a></div>
-            <Link href={startUrl} class="btn btn-primary">{user ? 'Proyek saya' : 'Masuk'}<Icon name="external" size={15} /></Link>
+            <Link href={startUrl} class="btn btn-primary">{user ? 'Proyek saya' : 'Masuk'}</Link>
         </nav>
         <nav aria-label="Navigasi bagian seluler" class="mobile-nav mx-5 flex justify-between gap-3 border-t border-line py-1 text-xs font-medium text-ink-2 md:hidden"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><a href="#paket">Paket</a><a href="#faq">FAQ</a></nav>
     </header>
@@ -89,7 +89,7 @@
                 <p class="mb-5 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-primary uppercase"><span class="h-px w-7 bg-primary"></span>Ruang kerja untuk tulisan akademik</p>
                 <h1 id="hero-title" class="font-display text-[46px] leading-[1.06] font-medium tracking-tight sm:text-[64px] lg:text-[72px]">Dari ide awal,<br />ke naskah<br /><span class="text-primary">yang terarah.</span></h1>
                 <p class="mt-6 max-w-lg text-base leading-relaxed text-ink-2 sm:text-lg">Kumpulkan sumber, susun kerangka, dan kembangkan tulisan dengan bantuan AI. Periksa setiap bagian, lalu lanjutkan di Word.</p>
-                <div class="mt-8 flex flex-wrap items-center gap-3"><Link href={startUrl} class="btn btn-primary min-h-12 px-6">{startLabel}<Icon name="pen" size={17} /></Link><a href={featuredPlanId ? '#paket' : '#cara-kerja'} class="btn btn-secondary min-h-12">{featuredPlanId ? 'Lihat paket Rp39.000' : 'Lihat cara kerja'}<Icon name="down" size={16} /></a></div>
+                <div class="mt-8 flex flex-wrap items-center gap-3"><Link href={startUrl} class="btn btn-primary min-h-12 w-full px-6 sm:w-auto">{startLabel}<Icon name="pen" size={17} /></Link><a href={featuredPlanId ? '#paket' : '#cara-kerja'} class="btn btn-secondary min-h-12 w-full sm:w-auto">{featuredPlanId ? 'Lihat paket Rp39.000' : 'Lihat cara kerja'}<Icon name="down" size={16} /></a></div>
                 <p class="mt-4 text-xs leading-relaxed text-ink-3">Mulai dengan akun Anda. Pilih paket saat membutuhkan bantuan AI.</p>
                 <div class="mt-9 flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-5 text-xs font-medium text-ink-2"><span>Skripsi</span><span>Tesis</span><span>Karya ilmiah</span><span>Artikel</span></div>
             </div>
@@ -136,7 +136,7 @@
 </div>
 
 <style>
-    .landing { overflow-wrap: anywhere; --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+    .landing { overflow-wrap: anywhere; }
     :global(html.landing-scroll) { scroll-behavior: smooth; }
     [data-reveal] { transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out); }
     [data-reveal]:global([data-pending]) { opacity: 0; transform: translateY(8px); }

@@ -8,3 +8,7 @@ export function estimateCredits(inputCharacters: number, outputWords: number, re
         max: Math.max(1, Math.ceil(characters / 2 / 2000 + words * 2.5 / 250)) * calls,
     };
 }
+
+export function creditLabel({ min, max }: { min: number; max: number }) {
+    return `≈ ${min === max ? min : `${min}–${max}`} kredit`;
+}

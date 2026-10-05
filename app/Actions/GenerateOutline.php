@@ -40,12 +40,14 @@ final class GenerateOutline
             "Judul: {$project->title}",
             "Jenis tulisan: {$project->document_type->label()}",
             $project->researchGapContext(),
+            $project->designContext(),
             '',
             'Struktur bab yang wajib diikuti:',
             ...$lines,
             '',
             'Susun judul subbab yang sesuai dengan judul di atas untuk setiap bab (0–'.self::MAX_SECTIONS.' subbab per bab).',
             'Bab yang contohnya tanpa subbab boleh tetap tanpa subbab. Jangan mengubah, menambah, atau menghapus bab. Jangan menulis isi.',
+            'Bila ada rancangan penelitian, subbab metode dan hasil mengikuti pendekatan dan rumusan masalah di rancangan.',
             "Jawab dengan JSON: {\"chapters\": [{\"sections\": [\"judul subbab\", ...]}, ...]} berisi tepat {$count} bab sesuai urutan.",
         ]);
 

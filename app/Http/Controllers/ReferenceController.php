@@ -42,6 +42,7 @@ final class ReferenceController extends Controller
                 'source_name' => $reference->source_name,
                 'input_method' => $reference->input_method,
                 'notes' => $reference->notes,
+                'notes_pending' => $reference->notesPending(),
                 'metadata' => (object) ($reference->metadata ?? []),
                 'missing' => array_values($style->missing($reference)),
                 'in_text' => $style->isComplete($reference) ? $style->label($reference) : null,

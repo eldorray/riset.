@@ -116,14 +116,15 @@
             <div class="flex flex-wrap items-center gap-3.5">
                 <h1 class="font-display text-[30px] sm:text-[40px] leading-tight font-medium">Kerangka</h1>
                 {#if source === 'ai'}
-                    <span class="badge badge-ai"><span class="rounded-full border border-ai px-1.5 font-mono text-[10px] leading-3.5">AI</span> Dihasilkan AI · perlu diperiksa</span>
+                    <span class="badge badge-ai"><span class="rounded-full border border-ai px-1.5 font-mono text-[10px] leading-3.5">AI</span> Usulan AI · belum ditinjau</span>
                 {:else if chapters.length && source === 'saved'}
                     <span class="badge"><Icon name="check" size={13} /> Tersimpan</span>
                 {/if}
             </div>
             {#if dirty}<p class="text-sm font-medium text-warn">Perubahan belum disimpan</p>{/if}
         </div>
-        <div class="flex gap-3">
+        <div class="flex flex-col items-start gap-1 sm:items-end">
+        <div class="flex flex-wrap gap-3">
             <button type="button" class="btn btn-secondary" onclick={generate} disabled={generator.processing}>
                 <Icon name={generator.processing ? 'spinner' : 'refresh'} size={16} />
                 {chapters.length ? 'Susun ulang dengan AI' : 'Susun dengan AI'}
@@ -132,9 +133,9 @@
                 {#if saveForm.processing}<Icon name="spinner" size={16} /> Menyimpan…{:else}Simpan kerangka{/if}
             </button>
         </div>
+        <AiCost inputCharacters={project.title.length + 2000} outputWords={600} detail="Perkiraan untuk menyusun kerangka tulisan." />
+        </div>
     </header>
-
-    <AiCost inputCharacters={project.title.length + 2000} outputWords={600} detail="Perkiraan untuk menyusun kerangka tulisan." />
     {#if generator.processing}
         <div class="card flex items-center gap-2.5 px-5 py-4" role="status" aria-live="polite">
             <Icon name="spinner" class="text-primary" />

@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  * Kerangka: list bab, tiap bab punya subbab. Bab tanpa subbab ditulis langsung.
  *
  * @phpstan-type Outline list<array{id: string, title: string, sections: list<array{id: string, title: string}>}>
- * @phpstan-type Unit array{id: string, number: string, title: string, level: int}
+ * @phpstan-type Unit array{id: string, number: string, title: string, level: int, kind: 'literatur'|'metode'|'empiris'}
  *
  * @property int $id
  * @property int $user_id
@@ -40,12 +40,33 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property array<string, mixed>|null $gap_analysis
  * @property array<string, mixed>|null $research_gap
+ * @property array<string, string>|null $research_design rancangan penelitian (lihat DESIGN_FIELDS)
+ * @property string|null $research_data data/temuan penelitian milik pengguna — satu-satunya dasar bab hasil
  */
-#[Fillable(['title', 'document_type', 'citation_style', 'docx_template_id', 'outline', 'draft', 'front_matter', 'ai_units'])]
+#[Fillable(['title', 'document_type', 'citation_style', 'docx_template_id', 'outline', 'draft', 'front_matter', 'ai_units', 'research_design', 'research_data'])]
 class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */
     use HasFactory;
+
+    public const DESIGN_FIELDS = [
+        'masalah' => 'Rumusan masalah / pertanyaan penelitian',
+        'tujuan' => 'Tujuan penelitian',
+        'hipotesis' => 'Hipotesis',
+        'pendekatan' => 'Pendekatan',
+        'desain' => 'Jenis atau desain penelitian',
+        'subjek' => 'Subjek, populasi, sampel, atau objek',
+        'pengumpulan' => 'Teknik pengumpulan data dan instrumen',
+        'analisis' => 'Teknik analisis data',
+        'ide' => 'Catatan dari diskusi judul',
+    ];
+
+    public const APPROACHES = [
+        'kuantitatif' => 'Kuantitatif',
+        'kualitatif' => 'Kualitatif',
+        'campuran' => 'Campuran (mixed methods)',
+        'studi_literatur' => 'Studi literatur',
+    ];
 
     protected function casts(): array
     {
@@ -59,6 +80,7 @@ class Project extends Model
             'archived_at' => 'immutable_datetime',
             'gap_analysis' => 'array',
             'research_gap' => 'array',
+            'research_design' => 'array',
         ];
     }
 
@@ -113,6 +135,81 @@ class Project extends Model
             : ($index + 1).'.';
     }
 
+    public function design(string $key): string
+    {
+        return trim((string) ($this->research_design[$key] ?? ''));
+    }
+
+    public function isLiteratureStudy(): bool
+    {
+        return $this->design('pendekatan') === 'studi_literatur';
+    }
+
+    /** Minimal untuk menulis bab metode tanpa menebak: masalah, pendekatan, dan teknik analisis. */
+    public function designReady(): bool
+    {
+        return $this->design('masalah') !== '' && $this->design('pendekatan') !== '' && $this->design('analisis') !== '';
+    }
+
+    public function hasResearchData(): bool
+    {
+        return trim((string) $this->research_data) !== '';
+    }
+
+    /**
+     * Jenis bab dari judulnya: bab hasil/penutup bergantung pada data pengguna, bab metode pada rancangan.
+     * ponytail: pencocokan kata kunci judul bab; judul bab di luar pola ini dianggap bab literatur.
+     * Simpan jenis per bab di kerangka bila admin memakai judul bab yang jauh berbeda.
+     *
+     * @return 'literatur'|'metode'|'empiris'
+     */
+    public static function chapterKind(string $title): string
+    {
+        $title = mb_strtolower($title);
+
+        return match (true) {
+            (bool) preg_match('/metode|metodologi/u', $title) => 'metode',
+            (bool) preg_match('/hasil|pembahasan|temuan|diskusi|kesimpulan|simpulan|penutup/u', $title) => 'empiris',
+            default => 'literatur',
+        };
+    }
+
+    /**
+     * Alasan AI tidak boleh menulis bagian ini, atau null bila boleh.
+     *
+     * @param  Unit  $unit
+     */
+    public function blockedReason(array $unit): ?string
+    {
+        if ($unit['kind'] === 'metode' && ! $this->designReady()) {
+            return 'Bagian metode memerlukan rancangan penelitian (rumusan masalah, pendekatan, dan teknik analisis). Isi di Rancangan penelitian.';
+        }
+        if ($unit['kind'] === 'empiris' && ! $this->isLiteratureStudy() && ! $this->hasResearchData()) {
+            return 'Bagian hasil, pembahasan, dan kesimpulan memerlukan data atau temuan penelitian Anda. Isi di Rancangan penelitian; AI tidak menulis hasil tanpa data.';
+        }
+
+        return null;
+    }
+
+    /** Rancangan yang diisi pengguna, untuk konteks prompt AI. */
+    public function designContext(): string
+    {
+        $lines = [];
+        foreach (self::DESIGN_FIELDS as $key => $label) {
+            $value = $this->design($key);
+            if ($value === '') {
+                continue;
+            }
+            $lines[] = match ($key) {
+                'pendekatan' => "- {$label}: ".(self::APPROACHES[$value] ?? $value),
+                'ide' => "- {$label} (gagasan awal, bukan fakta): {$value}",
+                default => "- {$label}: {$value}",
+            };
+        }
+
+        return $lines === [] ? '' : "Rancangan penelitian dari pengguna (acuan wajib; jangan mengubah maknanya, jangan menambah detail yang tidak ada):\n".implode("\n", $lines);
+    }
+
     /** Arah penelitian yang ditinjau pengguna, bukan sumber bukti untuk sitasi. */
     public function researchGapContext(): string
     {
@@ -140,18 +237,31 @@ class Project extends Model
         $units = [];
 
         foreach ($this->outline ?? [] as $i => $chapter) {
+            $kind = self::chapterKind($chapter['title']);
             if ($chapter['sections'] === []) {
-                $units[] = ['id' => $chapter['id'], 'number' => $this->chapterLabel($i), 'title' => $chapter['title'], 'level' => 1];
+                $units[] = ['id' => $chapter['id'], 'number' => $this->chapterLabel($i), 'title' => $chapter['title'], 'level' => 1, 'kind' => $kind];
 
                 continue;
             }
 
             foreach ($chapter['sections'] as $j => $section) {
-                $units[] = ['id' => $section['id'], 'number' => ($i + 1).'.'.($j + 1), 'title' => $section['title'], 'level' => 2];
+                $units[] = ['id' => $section['id'], 'number' => ($i + 1).'.'.($j + 1), 'title' => $section['title'], 'level' => 2, 'kind' => $kind];
             }
         }
 
         return $units;
+    }
+
+    /** @return Unit|null */
+    public function unit(string $id): ?array
+    {
+        foreach ($this->units() as $unit) {
+            if ($unit['id'] === $id) {
+                return $unit;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -176,6 +286,9 @@ class Project extends Model
             'filled' => count($filled),
             'front_parts' => count($this->document_type->frontMatter()),
             'front_filled' => count($this->document_type->frontMatter()) - count($this->missingFrontMatter()),
+            'design_ready' => $this->designReady(),
+            'has_data' => $this->hasResearchData(),
+            'literature_study' => $this->isLiteratureStudy(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

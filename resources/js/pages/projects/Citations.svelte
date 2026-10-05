@@ -47,6 +47,7 @@
                 <option value="" disabled>Pilih gaya sitasi</option>
                 {#each citationStyles as style (style.value)}<option value={style.value}>{style.label}</option>{/each}
             </select>
+            {#if styleForm.processing}<span class="help" role="status">Menyimpan…</span>{:else if styleForm.recentlySuccessful}<span class="help text-ok" role="status">Tersimpan.</span>{/if}
         </div>
     </header>
 

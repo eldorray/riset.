@@ -104,6 +104,10 @@
             <p class="text-sm"><strong>Pertanyaan:</strong> {selectedGap.question}</p>
             <p class="text-sm"><strong>Kontribusi yang diharapkan:</strong> {selectedGap.contribution}</p>
             {#if selectedStale}<p class="text-sm text-danger" role="status">Sumber pilihan telah berubah atau dihapus. Konteks ini tidak dipakai AI sampai Anda menganalisis dan memilih ulang.</p>{:else}<p class="help">Dipakai sebagai arah kerangka dan draf, bukan pengganti bukti atau sitasi. Verifikasi kebaruan melalui pencarian lanjutan.</p>{/if}
+            <div class="flex flex-wrap items-center gap-3 rounded-lg border border-primary-line bg-surface px-4 py-3 text-sm">
+                <span class="grow">Sesuaikan judul dan rumusan masalah dengan arah ini supaya Bab I sampai kesimpulan konsisten.</span>
+                <Link href={`/projects/${project.id}/rancangan`} class="btn btn-primary">Buka Rancangan penelitian</Link>
+            </div>
             {#if analysis?.id === selectedGap.analysis_id && !analysisStale}<button type="button" class="btn btn-secondary self-start" onclick={() => { choose(selectedGap!.candidate); choice.gap = selectedGap!.gap; choice.question = selectedGap!.question; choice.contribution = selectedGap!.contribution; }}>Sunting pilihan</button>{/if}
         </section>
     {/if}
@@ -116,13 +120,14 @@
             <details class="rounded-lg border border-line" open>
                 <summary class="cursor-pointer px-4 py-3 text-sm font-semibold">{group.name} ({group.sources.length})</summary>
                 <div class="border-t border-line px-4 py-3"><button class="btn btn-ghost mb-2 text-xs" type="button" disabled={starting} onclick={() => selectGroup(group.sources)}>{group.sources.every(source => selected.includes(source.id)) ? 'Batal pilih kategori' : 'Pilih kategori'}</button>
-                    {#each group.sources as source (source.id)}<label class="flex cursor-pointer items-start gap-3 border-t border-sunken py-3"><input type="checkbox" class="mt-1" checked={selected.includes(source.id)} onchange={() => toggle(source.id)} disabled={starting || (!selected.includes(source.id) && selected.length >= 10)} /><span class="min-w-0"><span class="block text-sm font-medium">{source.title}</span><span class="mt-1 block text-xs text-ink-3">{source.notes.trim() ? source.basis : 'Belum dibaca · akan dicoba otomatis'}</span></span></label>{/each}
+                    {#each group.sources as source (source.id)}<label class="flex cursor-pointer items-start gap-3 border-t border-sunken py-3"><input type="checkbox" class="mt-0.5 size-4.5 shrink-0 accent-primary" checked={selected.includes(source.id)} onchange={() => toggle(source.id)} disabled={starting || (!selected.includes(source.id) && selected.length >= 10)} /><span class="min-w-0"><span class="block text-sm font-medium">{source.title}</span><span class="mt-1 block text-xs text-ink-3">{source.notes.trim() ? source.basis : 'Belum dibaca · akan dicoba otomatis'}</span></span></label>{/each}
                 </div>
             </details>
         {:else}<div class="rounded-lg border border-dashed border-line-strong p-5 text-sm text-ink-2">Tambahkan minimal dua referensi sebelum memulai analisis. <Link href={`/projects/${project.id}/references`} class="font-semibold text-primary underline">Tambah referensi</Link></div>{/each}
         {#if selected.length >= 2}<AiCost inputCharacters={3000 + chosen.reduce((sum, source) => sum + source.notes.length, 0)} outputWords={800 + chosen.length * 150} detail="Perkiraan untuk analisis perbandingan." /><p class="help">{unread ? `${unread} sumber belum dibaca. Pembacaan sumber memakai kredit tambahan di luar perkiraan analisis di atas.` : 'Catatan sumber yang sudah tersimpan digunakan kembali.'}</p>{/if}
         {#if actionError || writing.error}<p role="alert" class="error">{actionError || writing.error}</p>{/if}
-        <button class="btn btn-primary self-start" disabled={selected.length < 2 || starting || writing.busy || !page.props.auth.user?.ai_active}>{starting ? 'Menyiapkan analisis…' : analysis ? 'Analisis ulang dengan AI' : 'Analisis research gap dengan AI'}<Icon name="outline" size={16} /></button>
+        <button class="btn btn-primary self-start" disabled={selected.length < 2 || starting || writing.busy || !page.props.auth.user?.ai_active}>{starting ? 'Menyiapkan analisis…' : analysis ? 'Analisis ulang dengan AI' : 'Analisis research gap dengan AI'}<Icon name="gap" size={16} /></button>
+        {#if !page.props.auth.user?.ai_active}<p class="help">Analisis memerlukan paket AI aktif. <Link href="/account/subscription" class="font-medium text-primary underline">Aktifkan di Paket & Kredit</Link></p>{:else if selected.length < 2}<p class="help">Pilih minimal 2 sumber untuk memulai.</p>{/if}
         <p class="help">Analisis tetap berjalan saat Anda pindah menu. Pembacaan dan hasil AI perlu diperiksa terhadap artikel asli.</p>
     </form>
 
@@ -135,11 +140,26 @@
     {#if analysis}
         <section class="flex flex-col gap-4" aria-labelledby="analysis-title">
             <div><p class="eyebrow mb-2 text-ai">Usulan AI · belum diverifikasi</p><h2 id="analysis-title" class="font-display text-2xl sm:text-3xl">Perbandingan penelitian</h2><p class="mt-2 text-sm text-ink-2">Fokus: {analysis.focus}</p></div>
-            {#if analysisStale}<div class="alert alert-warning" role="status"><p>Sumber analisis telah berubah atau dihapus. Hasil ini adalah snapshot lama; analisis ulang sebelum memilih kandidat.</p></div>{/if}
+            {#if analysisStale}<div class="alert alert-warn" role="status"><p>Sumber analisis telah berubah atau dihapus. Hasil ini adalah snapshot lama; analisis ulang sebelum memilih kandidat.</p></div>{/if}
             <p class="text-sm leading-relaxed text-ink-2">{analysis.limitations}</p>
             {#each analysis.excluded as source (source.id)}<p class="text-sm text-danger">Sumber tidak dipakai: {references.find(reference => reference.id === source.id)?.title ?? `Referensi #${source.id}`} — {source.reason}</p>{/each}
+            <ul class="flex flex-col gap-3 md:hidden" aria-label="Matriks penelitian">
+                {#each analysis.matrix as row (row.reference_id)}
+                    {@const source = sourceFor(row.reference_id)}
+                    <li class="card flex flex-col gap-3 p-4 text-sm">
+                        <div><a href={source?.url} target="_blank" rel="noopener noreferrer" class="font-semibold text-primary underline">{source?.title}</a><p class="mt-1 text-xs text-ink-3">{source?.citation} · {source?.basis}</p></div>
+                        <dl class="flex flex-col gap-2.5">
+                            <div><dt class="section-label text-[11px]">Fokus & konteks</dt><dd class="mt-0.5 whitespace-pre-line">{row.focus}{#if row.context}<span class="mt-1 block text-ink-2">{row.context}</span>{/if}</dd></div>
+                            <div><dt class="section-label text-[11px]">Metode</dt><dd class="mt-0.5 whitespace-pre-line">{row.method}</dd></div>
+                            <div><dt class="section-label text-[11px]">Temuan utama</dt><dd class="mt-0.5 whitespace-pre-line">{row.findings}</dd></div>
+                            <div><dt class="section-label text-[11px]">Keterbatasan</dt><dd class="mt-0.5 whitespace-pre-line">{row.limitations}</dd></div>
+                        </dl>
+                    </li>
+                {/each}
+            </ul>
+            <p class="text-xs text-ink-3 md:hidden">“Tidak disebutkan” berarti informasi tidak tersedia dalam bahan, bukan tidak pernah diteliti.</p>
             <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users can scroll the comparison table.) -->
-            <div class="card overflow-x-auto" role="region" aria-label="Matriks penelitian, geser untuk melihat semua kolom" tabindex="0">
+            <div class="card hidden overflow-x-auto md:block" role="region" aria-label="Matriks penelitian, geser untuk melihat semua kolom" tabindex="0">
                 <table class="w-full min-w-[980px] border-collapse text-left text-sm"><caption class="px-5 py-3 text-left text-xs text-ink-3">Ringkasan catatan sumber · “Tidak disebutkan” berarti informasi tidak tersedia dalam bahan, bukan tidak pernah diteliti.</caption><thead><tr class="bg-paper">{#each ['Artikel / dasar pembacaan', 'Fokus & konteks', 'Metode', 'Temuan utama', 'Keterbatasan'] as heading}<th scope="col" class="border-y border-line px-4 py-3 font-semibold">{heading}</th>{/each}</tr></thead><tbody>{#each analysis.matrix as row (row.reference_id)}{@const source = sourceFor(row.reference_id)}<tr class="border-b border-line last:border-b-0"><th scope="row" class="max-w-64 px-4 py-4 align-top font-normal"><a href={source?.url} target="_blank" rel="noopener noreferrer" class="font-semibold text-primary underline">{source?.title}</a><p class="mt-2 text-xs text-ink-3">{source?.citation}</p><p class="mt-2 text-xs text-ink-3">{source?.basis}</p></th><td class="max-w-64 whitespace-pre-line px-4 py-4 align-top">{row.focus}<p class="mt-2 text-ink-2">{row.context}</p></td><td class="max-w-56 whitespace-pre-line px-4 py-4 align-top">{row.method}</td><td class="max-w-64 whitespace-pre-line px-4 py-4 align-top">{row.findings}</td><td class="max-w-64 whitespace-pre-line px-4 py-4 align-top">{row.limitations}</td></tr>{/each}</tbody></table>
             </div>
             {#each analysis.sources as source (source.id)}<details class="rounded-lg border border-line px-4 py-3"><summary class="cursor-pointer text-sm font-medium">Periksa catatan: {source.title}</summary><p class="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink-2">{source.notes}</p></details>{/each}
@@ -167,7 +187,7 @@
             <div class="field"><label for="chosen-gap" class="label">Rumusan gap</label><textarea id="chosen-gap" class="input min-h-32" bind:value={choice.gap} maxlength="4000" required></textarea></div>
             <div class="field"><label for="chosen-question" class="label">Pertanyaan penelitian</label><textarea id="chosen-question" class="input min-h-24" bind:value={choice.question} maxlength="2000" required></textarea></div>
             <div class="field"><label for="chosen-contribution" class="label">Kontribusi yang diharapkan</label><textarea id="chosen-contribution" class="input min-h-24" bind:value={choice.contribution} maxlength="2000" required></textarea></div>
-            <label class="flex items-start gap-3 text-sm"><input type="checkbox" class="mt-1" bind:checked={choice.reviewed} /><span>Saya sudah meninjau rumusan dan bukti sumber. Kebaruan masih perlu diperiksa melalui pencarian lanjutan.</span></label>
+            <label class="flex items-start gap-3 text-sm"><input type="checkbox" class="mt-0.5 size-4.5 shrink-0 accent-primary" bind:checked={choice.reviewed} /><span>Saya sudah meninjau rumusan dan bukti sumber. Kebaruan masih perlu diperiksa melalui pencarian lanjutan.</span></label>
             <div class="flex flex-wrap gap-3"><button class="btn btn-primary" disabled={choice.processing || !choice.reviewed || analysisStale || choice.analysis_id !== analysis?.id}>{choice.processing ? 'Menyimpan…' : 'Simpan sebagai arah penelitian'}</button><button type="button" class="btn btn-secondary" disabled={choice.processing} onclick={() => (editing = false)}>Batal</button></div>
         </form>
     {/if}

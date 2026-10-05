@@ -36,12 +36,17 @@ final class GenerateFrontMatter
         $prompt = match ($part) {
             'abstrak' => implode("\n", [
                 $header,
+                $project->designContext(),
+                $project->hasResearchData() ? "Data dan temuan penelitian milik pengguna:\n".Str::limit(trim((string) $project->research_data), self::EXCERPT * 2) : '',
                 '',
                 'Isi draf per bagian (cuplikan):',
                 $this->body($project),
                 '',
                 "Susun abstrak {$type} berbahasa Indonesia, 150–250 kata, satu paragraf: tujuan, metode, hasil, dan simpulan.",
-                'Hanya ringkas isi draf di atas. Jangan menambah temuan, angka, atau klaim yang tidak ada di draf, dan jangan menulis sitasi.',
+                'Hanya ringkas isi draf dan rancangan di atas. Jangan menambah temuan, angka, atau klaim yang tidak ada, dan jangan menulis sitasi.',
+                $project->hasResearchData() || $project->isLiteratureStudy()
+                    ? 'Hasil dan angka hanya boleh diambil dari data pengguna atau draf yang memuatnya.'
+                    : 'Data penelitian belum diisi: jangan menulis hasil atau simpulan; tulis [hasil penelitian belum tersedia] di tempatnya dan sebutkan di "limitations".',
                 'Jika draf belum memuat hasil atau simpulan, sebutkan di "limitations".',
                 'Jawab dengan JSON: {"text": "…", "keywords": ["3–5 kata kunci"], "limitations": "…"}',
             ]),

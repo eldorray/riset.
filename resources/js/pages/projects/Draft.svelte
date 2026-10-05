@@ -1,15 +1,17 @@
 <script lang="ts">
-    import { router, useHttp } from '@inertiajs/svelte';
+    import { Link, page, router, useHttp } from '@inertiajs/svelte';
     import { onDestroy, untrack } from 'svelte';
     import { createWriting, type WritingSuggestion } from '@/lib/writing.svelte';
     import Icon from '@/components/Icon.svelte';
     import AiCost from '@/components/AiCost.svelte';
     import ProjectLayout from '@/layouts/ProjectLayout.svelte';
     import { errorMessage } from '@/lib/format';
+    import { creditLabel, estimateCredits } from '@/lib/credits';
+    import { unitBlocked } from '@/lib/outline';
     import projects from '@/routes/projects';
     import type { ProjectSummary, Unit } from '@/types';
 
-    type Reference = { id: number; title: string; source_url: string; in_text: string | null; has_notes: boolean; note_chars: number; keywords: string[] };
+    type Reference = { id: number; title: string; source_url: string; in_text: string | null; has_notes: boolean; notes_pending: boolean; note_chars: number; keywords: string[] };
 
     let {
         project,
@@ -20,6 +22,7 @@
         selectedUnit,
     }: { project: ProjectSummary; units: Unit[]; draft: Record<string, string>; aiUnits: string[]; references: Reference[]; selectedUnit: string | null } = $props();
 
+    const user = $derived(page.props.auth.user);
     let reviewed = $state<string[]>([]);
     let localAiUnits = $state<string[]>([]);
     const unreviewed = (id: string) => localAiUnits.includes(id) && !reviewed.includes(id) && texts[id] === (baseline[id] ?? '');
@@ -96,8 +99,15 @@
 
     const active = $derived(units.find((u) => u.id === activeId));
     const byId = $derived(new Map(references.map((r) => [r.id, r])));
-    const emptyUnits = $derived(units.filter((u) => !texts[u.id]?.trim() && !suggestions[u.id]));
+    const emptyUnits = $derived(units.filter((u) => !texts[u.id]?.trim() && !suggestions[u.id] && !unitBlocked(u, project)));
+    const blocked = $derived(active ? unitBlocked(active, project) : null);
     const sourceCharacters = $derived(references.filter(r => selected.includes(r.id)).reduce((sum, r) => sum + r.note_chars, 0) + 3000);
+    const draftCost = $derived(creditLabel(estimateCredits(sourceCharacters, 500)));
+    const bulkCost = $derived(creditLabel(estimateCredits(sourceCharacters, 500, emptyUnits.length)));
+    const activeIndex = $derived(units.findIndex((u) => u.id === activeId));
+    const activeCitations = $derived([...new Set([...(texts[activeId] ?? '').matchAll(/\[@(\d+)\]/g)].map((m) => Number(m[1])))].map((id) => ({ id, label: byId.get(id)?.in_text ?? (byId.has(id) ? 'metadata belum lengkap' : 'referensi tidak dikenal') })));
+    const statusText = { isi: 'berisi', ai: 'hasil AI belum ditinjau', error: 'gagal dibuat', kosong: 'kosong', terkunci: 'butuh rancangan atau data', loading: 'sedang dibuat' } as const;
+    let copyNotice = $state('');
     const words = $derived((texts[activeId] ?? '').trim().split(/\s+/).filter(Boolean).length);
 
     const citationCounts = $derived.by(() => {
@@ -230,10 +240,15 @@
     async function copyLocal() {
         try {
             await navigator.clipboard.writeText(units.map((u) => `${u.number} ${u.title}\n${texts[u.id] ?? ''}`).join('\n\n'));
-            alert('Tulisan lokal disalin.');
+            copyNotice = 'Tulisan lokal disalin ke clipboard.';
         } catch {
-            alert('Salin teks langsung dari editor sebelum memuat ulang.');
+            copyNotice = 'Gagal menyalin. Salin teks langsung dari editor sebelum memuat ulang.';
         }
+    }
+
+    function selectUnit(id: string) {
+        activeId = id;
+        tab = 'tulis';
     }
 
     /** Pratinjau: penanda [@id] berdampingan → satu kurung, tanpa HTML mentah. */
@@ -256,11 +271,12 @@
             );
     }
 
-    function status(unit: Unit): 'loading' | 'error' | 'ai' | 'isi' | 'kosong' {
+    function status(unit: Unit): 'loading' | 'error' | 'ai' | 'isi' | 'kosong' | 'terkunci' {
         if (generatingId === unit.id) return 'loading';
         if (failures[unit.id]) return 'error';
         if (suggestions[unit.id] || unreviewed(unit.id)) return 'ai';
-        return texts[unit.id]?.trim() ? 'isi' : 'kosong';
+        if (texts[unit.id]?.trim()) return 'isi';
+        return unitBlocked(unit, project) ? 'terkunci' : 'kosong';
     }
 
 
@@ -279,20 +295,17 @@
             <span class="inline-flex items-center gap-1.5 text-[13px] {dirty ? 'font-medium text-warn' : 'text-ink-2'}" role="status">
                 {#if saving}Menyimpan…{:else if saveError}Gagal menyimpan{:else if dirty}Menunggu autosave…{:else}<Icon name="check" size={14} class="text-ok" /> Tersimpan{/if}
             </span>
-            {#if emptyUnits.length}<AiCost inputCharacters={sourceCharacters} outputWords={500} requests={emptyUnits.length} detail="Perkiraan untuk menulis semua bagian kosong, sekitar 500 kata per bagian." />{/if}
     {#if bulk}
                 <button type="button" class="btn btn-secondary" onclick={stopWriting} disabled={bulk.stop_requested}>
                     {bulk.stop_requested ? 'Menghentikan…' : 'Hentikan'}
                 </button>
-            {:else}
-                <button type="button" class="btn btn-secondary" onclick={generateAll} disabled={!emptyUnits.length || writing.busy}>
+            {:else if emptyUnits.length}
+                <button type="button" class="btn btn-secondary" onclick={generateAll} disabled={writing.busy}>
                     <span class="rounded-full border border-current px-1.5 font-mono text-[10px] leading-3.5">AI</span>
                     Buat semua bagian kosong ({emptyUnits.length})
+                    {#if !user?.unlimited}<span class="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary">{bulkCost}</span>{/if}
                 </button>
             {/if}
-            <button type="button" class="btn btn-primary" onclick={save} disabled={!dirty || saving || conflict}>
-                {#if saving}<Icon name="spinner" size={16} /> Menyimpan…{:else}Simpan draf{/if}
-            </button>
         </div>
     </header>
 
@@ -315,7 +328,7 @@
         </div>
     {/if}
     {#if saveError}
-        <div class="alert alert-danger" role="alert"><Icon name="error" class="text-danger" /><div class="flex flex-col gap-2"><p>{saveError}</p><div class="flex flex-wrap gap-2"><button class="btn btn-secondary" type="button" onclick={copyLocal}>Salin tulisan lokal</button>{#if conflict}<button type="button" class="btn btn-secondary" onclick={() => { if (confirm('Muat versi server? Perubahan lokal akan dibuang. Salin tulisan Anda lebih dulu.')) location.reload(); }}>Muat versi server</button>{:else}<button type="button" class="btn btn-secondary" onclick={() => void save()}>Coba simpan lagi</button>{/if}</div></div></div>
+        <div class="alert alert-danger" role="alert"><Icon name="error" class="text-danger" /><div class="flex flex-col gap-2"><p>{saveError}</p><div class="flex flex-wrap gap-2"><button class="btn btn-secondary" type="button" onclick={copyLocal}>Salin tulisan lokal</button>{#if conflict}<button type="button" class="btn btn-secondary" onclick={() => { if (confirm('Muat versi server? Perubahan lokal akan dibuang. Salin tulisan Anda lebih dulu.')) location.reload(); }}>Muat versi server</button>{:else}<button type="button" class="btn btn-secondary" onclick={() => void save()}>Coba simpan lagi</button>{/if}</div>{#if copyNotice}<p class="text-sm" role="status">{copyNotice}</p>{/if}</div></div>
     {/if}
 
     {#if units.length === 0}
@@ -326,16 +339,21 @@
         </div>
     {:else}
         <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)_300px]">
-            <nav aria-label="Bagian dokumen" class="flex flex-col gap-0.5 lg:sticky lg:top-6">
+            <div class="sticky top-(--mobile-header-h) z-20 -mx-4 flex items-center gap-2 border-b border-line bg-paper px-4 py-2 sm:-mx-6 sm:px-6 lg:hidden">
+                <button type="button" class="btn btn-secondary btn-icon shrink-0" aria-label="Bagian sebelumnya" disabled={activeIndex <= 0} onclick={() => selectUnit(units[activeIndex - 1].id)}><Icon name="back" /></button>
+                <label for="unit-select" class="sr-only">Pilih bagian</label>
+                <select id="unit-select" class="input min-w-0 grow font-semibold" value={activeId} onchange={(event) => selectUnit(event.currentTarget.value)}>
+                    {#each units as unit (unit.id)}<option value={unit.id}>{unit.number} {unit.title} · {statusText[status(unit)]}</option>{/each}
+                </select>
+                <button type="button" class="btn btn-secondary btn-icon shrink-0" aria-label="Bagian berikutnya" disabled={activeIndex >= units.length - 1} onclick={() => selectUnit(units[activeIndex + 1].id)}><Icon name="next" /></button>
+            </div>
+            <nav aria-label="Bagian dokumen" class="hidden flex-col gap-0.5 lg:sticky lg:top-6 lg:flex">
                 {#each units as unit (unit.id)}
                     {@const s = status(unit)}
                     <button
                         type="button"
                         aria-current={unit.id === activeId ? 'location' : undefined}
-                        onclick={() => {
-                            activeId = unit.id;
-                            tab = 'tulis';
-                        }}
+                        onclick={() => selectUnit(unit.id)}
                         class="flex min-h-11 items-center gap-2.5 rounded-md px-2 text-left text-[13px] leading-tight {unit.id === activeId
                             ? 'bg-surface font-semibold shadow-[0_0_0_1px_var(--color-line)]'
                             : 'text-ink-2 hover:bg-surface/60'} {unit.level === 1 ? 'mt-2' : ''}"
@@ -345,17 +363,18 @@
                         {:else}
                             <span
                                 aria-hidden="true"
-                                class="size-2 shrink-0 rounded-full border-[1.5px] {s === 'isi' ? 'border-ink bg-ink' : s === 'ai' ? 'border-ai bg-ai' : s === 'error' ? 'border-danger bg-danger' : 'border-line-strong'}"
+                                class="size-2 shrink-0 rounded-full border-[1.5px] {s === 'isi' ? 'border-ink bg-ink' : s === 'ai' ? 'border-ai bg-ai' : s === 'error' ? 'border-danger bg-danger' : s === 'terkunci' ? 'border-dashed border-warn' : 'border-line-strong'}"
                             ></span>
                         {/if}
                         <span class="grow"><span class="font-mono text-[11px] text-ink-3">{unit.number}</span> {unit.title}</span>
-                        <span class="sr-only">{{ isi: 'berisi', ai: 'hasil AI belum ditinjau', error: 'gagal dibuat', kosong: 'kosong', loading: 'sedang dibuat' }[s]}</span>
+                        <span class="sr-only">{statusText[s]}</span>
                     </button>
                 {/each}
                 <div class="mt-3 flex flex-col gap-1.5 border-t border-line px-2 pt-3 text-xs text-ink-2">
                     <span class="flex items-center gap-2"><span class="size-2 rounded-full bg-ink"></span>Berisi</span>
                     <span class="flex items-center gap-2"><span class="size-2 rounded-full bg-ai"></span>Hasil AI belum ditinjau</span>
                     <span class="flex items-center gap-2"><span class="size-2 rounded-full border-[1.5px] border-line-strong"></span>Kosong</span>
+                    {#if units.some((u) => unitBlocked(u, project))}<span class="flex items-center gap-2"><span class="size-2 rounded-full border-[1.5px] border-dashed border-warn"></span>Butuh rancangan/data</span>{/if}
                     {#if Object.keys(failures).length}<span class="flex items-center gap-2"><span class="size-2 rounded-full bg-danger"></span>Gagal dibuat</span>{/if}
                 </div>
             </nav>
@@ -376,6 +395,16 @@
                     <div class="flex flex-col gap-5 px-4 py-5 sm:px-8 sm:py-7">
                         <h2 class="font-display text-[28px] leading-tight font-medium">{active.number} {active.title}</h2>
 
+                        {#if blocked && !texts[activeId]?.trim()}
+                            <div class="alert alert-warn" role="note">
+                                <Icon name="warn" class="text-warn" />
+                                <div class="flex flex-col items-start gap-2">
+                                    <p>{blocked} Anda tetap bisa menulis sendiri di sini.</p>
+                                    <Link href={`/projects/${project.id}/rancangan${active?.kind === 'empiris' ? '#data' : ''}`} class="btn btn-secondary">Buka Rancangan penelitian</Link>
+                                </div>
+                            </div>
+                        {/if}
+
                         {#if unreviewed(activeId)}
                             <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ai-line bg-ai-wash px-4 py-2.5" role="status">
                                 <span class="flex items-center gap-2 text-[13px] font-semibold text-ai">
@@ -387,7 +416,7 @@
                                     onclick={() => {
                                         reviewed.push(activeId);
                                         save();
-                                    }}>Tandai sudah diperiksa</button
+                                    }}>Tandai sudah ditinjau</button
                                 >
                             </div>
                         {/if}
@@ -403,7 +432,11 @@
                                 class="input min-h-80 resize-y border-line font-display text-lg leading-[30px]"
                                 placeholder="Tulis di sini, atau minta AI membuat draf bagian ini. Pisahkan paragraf dengan baris kosong."
                             ></textarea>
-                            <p class="help -mt-2">Sitasi tertulis sebagai <span class="font-mono text-xs">[@id]</span> dan dirender sesuai gaya sitasi saat pratinjau dan ekspor.</p>
+                            {#if activeCitations.length}
+                                <p class="help -mt-2"><span class="font-semibold text-ink">Sitasi di bagian ini:</span> {#each activeCitations as citation, i (citation.id)}{#if i}{'; '}{/if}<span class="font-mono text-xs">[@{citation.id}]</span> {citation.label}{/each}</p>
+                            {:else}
+                                <p class="help -mt-2">Sitasi tertulis sebagai <span class="font-mono text-xs">[@id]</span> dan dirender sesuai gaya sitasi saat pratinjau dan ekspor.</p>
+                            {/if}
                         {:else if texts[activeId]?.trim()}
                             <div class="flex flex-col gap-4 font-display text-lg leading-[30px]">
                                 {#each preview(texts[activeId]) as paragraph, p (p)}
@@ -439,12 +472,20 @@
                             <section aria-label="Teks dihasilkan AI" class="flex flex-col rounded-[10px] border border-ai-line bg-ai-wash">
                                 <div class="flex items-center gap-2 border-b border-ai-line/60 px-3.5 py-2.5">
                                     <span class="rounded-full border border-ai px-1.5 font-mono text-[11px] leading-3.5 text-ai">AI</span>
-                                    <span class="text-[13px] font-semibold text-ai">Dihasilkan AI · belum diperiksa</span>
+                                    <span class="text-[13px] font-semibold text-ai">Usulan AI · belum ditinjau</span>
                                 </div>
                                 <div class="flex flex-col gap-3.5 px-4.5 py-4">
                                     {#each preview(suggestion.text) as paragraph, p (p)}
                                         <p class="font-display text-lg leading-[30px]">{#each paragraph as part, k (k)}{#if part.cite}<span class="cite">({#each part.sources ?? [] as source, index}{#if index}; {/if}<a href={`${projects.references.index(project.id).url}?edit=${source.id}`} title={source.title} class="underline decoration-dotted underline-offset-2">{source.label}</a>{/each})</span>{:else}{part.value}{/if}{/each}</p>
                                     {/each}
+                                    {#if suggestion.evidence?.length}
+                                        <details class="rounded-lg border border-ai-line bg-surface px-3.5 py-2.5 text-sm">
+                                            <summary class="cursor-pointer font-semibold">Bukti sitasi dari catatan ({suggestion.evidence.length})</summary>
+                                            <ul class="mt-2 flex flex-col gap-2">
+                                                {#each suggestion.evidence as item, i (i)}<li><span class="font-mono text-xs">[@{item.id}]</span> {byId.get(item.id)?.in_text ?? byId.get(item.id)?.title ?? 'Referensi'} — <span class="text-ink-2">“{item.quote}”</span></li>{/each}
+                                            </ul>
+                                        </details>
+                                    {/if}
                                     <div class="flex flex-col gap-1 text-sm"><span class="font-semibold">Referensi dikirim ke AI</span>{#each suggestion.sourceIds ?? [] as id (id)}<a href={`${projects.references.index(project.id).url}?edit=${id}`} class="text-primary underline">{byId.get(id)?.title ?? `Referensi ${id}`}</a>{:else}<span class="text-warn">Tanpa referensi · periksa klaim dan tambahkan sumber.</span>{/each}</div>
                                     {#if suggestion.limitations}
                                         <div class="flex items-start gap-2.5 rounded-lg border border-ai-line bg-surface px-3.5 py-3" role="note">
@@ -453,8 +494,8 @@
                                         </div>
                                     {/if}
                                     <div class="flex flex-wrap gap-2.5">
-                                        <button type="button" class="btn btn-primary" onclick={() => accept(activeId)}>Terima ke draf</button>
-                                        <button type="button" class="btn btn-secondary" onclick={() => acceptToEdit(activeId)}>Terima lalu edit</button>
+                                        <button type="button" class="btn btn-primary" onclick={() => accept(activeId)}>Pakai usulan</button>
+                                        <button type="button" class="btn btn-secondary" onclick={() => acceptToEdit(activeId)}>Pakai lalu edit</button>
                                         <button type="button" class="btn btn-ghost text-danger" onclick={() => discard(activeId)}>Buang</button>
                                     </div>
                                 </div>
@@ -469,11 +510,11 @@
                 </article>
             {/if}
 
-            <aside class="flex flex-col gap-4 lg:col-span-2 xl:sticky xl:top-6 xl:col-span-1">
+            <aside id="sumber-draf" class="flex scroll-mt-36 flex-col gap-4 lg:col-span-2 xl:sticky xl:top-6 xl:col-span-1">
                 <section class="card flex flex-col gap-3 px-4.5 py-4">
                     <fieldset class="flex flex-col">
                         <legend class="section-label mb-1.5">Referensi untuk AI <span class="font-mono text-xs text-ink-2">· {citationTotal} sitasi</span></legend>
-                        <p class="mb-3 text-xs text-ink-2">{selected.length}/20 referensi dipilih · Pilih semua mengikuti batas 20 referensi. Jumlah sitasi dihitung dari seluruh draf di editor.</p>
+                        <p class="mb-3 text-xs text-ink-2">{selected.length}/20 referensi dipilih · Hanya sumber dengan catatan yang sudah ditinjau yang bisa dipakai AI. Jumlah sitasi dihitung dari seluruh draf di editor.</p>
                         <a href={projects.references.index(project.id).url} class="mb-3 text-xs text-primary underline">Tambah referensi / atur kata kunci</a>
                         {#if references.length === 0}
                             <p class="text-[13px] leading-normal text-ink-2">Belum ada referensi. AI tetap bisa menulis, tetapi tanpa sitasi dan akan menyatakan keterbatasannya.</p>
@@ -482,19 +523,19 @@
                             <details class="mt-2 border-t border-sunken pt-3">
                                 <summary class="cursor-pointer rounded py-2 text-xs font-semibold text-ink-2 focus-visible:outline-2 focus-visible:outline-primary">{group.keyword} ({group.items.length}) <span class="font-normal">· {group.items.filter((r) => selected.includes(r.id)).length} dipilih</span></summary>
                                 <div class="flex flex-wrap gap-2 pb-2">
-                                    <button type="button" class="btn btn-ghost min-h-10 px-2 text-xs" aria-label="Pilih semua referensi kategori {group.keyword}" disabled={writing.busy || selected.length >= 20 || group.items.every((r) => selected.includes(r.id))} onclick={() => selected = [...new Set([...selected, ...group.items.map((r) => r.id)])].slice(0, 20)}>Pilih semua</button>
+                                    <button type="button" class="btn btn-ghost min-h-10 px-2 text-xs" aria-label="Pilih semua referensi kategori {group.keyword}" disabled={writing.busy || selected.length >= 20 || group.items.every((r) => !r.has_notes || selected.includes(r.id))} onclick={() => selected = [...new Set([...selected, ...group.items.filter((r) => r.has_notes).map((r) => r.id)])].slice(0, 20)}>Pilih semua</button>
                                     <button type="button" class="btn btn-ghost min-h-10 px-2 text-xs" aria-label="Batalkan pilihan kategori {group.keyword}" disabled={writing.busy || !group.items.some((r) => selected.includes(r.id))} onclick={() => selected = selected.filter((id) => !group.items.some((r) => r.id === id))}>Batalkan pilihan</button>
                                 </div>
                                 {#each group.items as reference (reference.id)}
                                     <div class="flex items-center gap-1">
                                         <label class="flex min-h-11 min-w-0 grow items-center gap-2.5 py-2 text-[13px] leading-snug">
-                                            <input type="checkbox" value={reference.id} bind:group={selected} disabled={writing.busy || (selected.length >= 20 && !selected.includes(reference.id))} class="size-4.5 shrink-0 accent-primary" />
+                                            <input type="checkbox" value={reference.id} bind:group={selected} disabled={writing.busy || !reference.has_notes || (selected.length >= 20 && !selected.includes(reference.id))} class="size-4.5 shrink-0 accent-primary" />
                                             <span class="flex min-w-0 flex-col gap-0.5">
                                                 <span>{reference.in_text ?? reference.title}</span>
                                                 {#if reference.in_text}<span class="text-xs text-ink-2">{reference.title}</span>{/if}
                                                 <span class="font-mono text-[11px] text-ink-2">{citationCounts.get(reference.id) ?? 0} sitasi</span>
                                                 {#if !reference.in_text}<span class="text-[11px] font-medium text-warn">metadata belum lengkap</span>{/if}
-                                                {#if !reference.has_notes}<a href={`${projects.references.index(project.id).url}?edit=${reference.id}&notes=1`} class="text-[11px] text-primary underline">Isi catatan agar AI bisa menyitasi</a>{/if}
+                                                {#if !reference.has_notes}<a href={`${projects.references.index(project.id).url}?edit=${reference.id}&notes=1`} class="text-[11px] text-primary underline">{reference.notes_pending ? 'Tinjau catatan AI agar bisa dipakai' : 'Isi catatan agar AI bisa menyitasi'}</a>{/if}
                                             </span>
                                         </label>
                                         <button type="button" class="btn btn-ghost btn-icon shrink-0 text-ink-2" aria-label="Sisipkan sitasi {reference.in_text ?? reference.title}" title="Sisipkan sitasi di posisi kursor" onclick={() => insertCitation(reference.id)}>
@@ -506,16 +547,24 @@
                         {/each}
                     </fieldset>
                     <AiCost inputCharacters={sourceCharacters} outputWords={500} detail="Perkiraan untuk satu bagian draf sekitar 500 kata." />
-                    <button type="button" class="btn btn-primary" onclick={() => generate(activeId)} disabled={writing.busy || !active || !!suggestions[activeId]}>
+                    <button type="button" class="btn btn-primary hidden lg:inline-flex" onclick={() => generate(activeId)} disabled={writing.busy || !active || !!suggestions[activeId] || !!blocked}>
                         <span class="rounded-full border border-white px-1.5 font-mono text-[10px] leading-3.5">AI</span>
                         Buat draf {active?.number ?? ''}
                     </button>
                     <p class="text-xs leading-normal text-ink-2">
-                        AI menempatkan sitasi dari sumber terpilih pada kalimat yang didukung catatan Anda. Pilihan yang sama dipakai untuk semua bagian kosong; sumber yang tidak relevan atau tanpa catatan dijelaskan sebagai keterbatasan.
+                        AI menempatkan sitasi dari sumber terpilih pada kalimat yang didukung catatan Anda, beserta cuplikan buktinya. Bab metode mengikuti rancangan; bab hasil hanya memakai data penelitian Anda.
                     </p>
                 </section>
                 <p class="px-1 text-xs leading-normal text-ink-3">Tautan sumber tidak membuktikan setiap pernyataan benar. Periksa isi sumbernya.</p>
             </aside>
+
+            <div class="sticky bottom-0 z-20 -mx-4 flex gap-2 border-t border-line bg-surface px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 lg:hidden">
+                <a href="#sumber-draf" class="btn btn-secondary shrink-0 px-3" aria-label="Sumber untuk AI, {selected.length} dipilih"><Icon name="book" size={17} /> {selected.length}</a>
+                <button type="button" class="btn btn-primary min-w-0 grow px-3" onclick={() => generate(activeId)} disabled={writing.busy || !active || !!suggestions[activeId] || !!blocked}>
+                    <span class="whitespace-nowrap">Buat draf {active?.number ?? ''}</span><span class="sr-only"> dengan AI</span>
+                    {#if !user?.unlimited}<span class="rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium whitespace-nowrap">{draftCost}</span>{/if}
+                </button>
+            </div>
         </div>
     {/if}
 </ProjectLayout>

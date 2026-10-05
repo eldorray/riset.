@@ -229,7 +229,7 @@ class ArticleReader
             throw new AiException('AI tidak menghasilkan ringkasan teks yang valid. Coba lagi atau isi catatan manual.');
         }
         $summary = trim($summary);
-        $header = "Catatan AI · belum diperiksa\nDasar: {$basis}\nSumber: {$url}\nDibaca: ".now()->toDateString()."\n\n";
+        $header = Reference::AI_NOTES_PENDING."\nDasar: {$basis}\nSumber: {$url}\nDibaca: ".now()->toDateString()."\n\n";
         $limit = 5000 - mb_strlen($header);
         if (mb_strlen($summary) > $limit) {
             $notice = "\n\nRingkasan dibatasi karena hasil AI terlalu panjang; periksa artikel asli untuk rincian lengkap.";

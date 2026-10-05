@@ -24,7 +24,7 @@ final class GenerateResearchGap
     {
         $notes = $reference->notes ?? '';
         $basis = 'Catatan manual — kelengkapan isi perlu diperiksa';
-        if (str_starts_with($notes, 'Catatan AI · belum diperiksa') && preg_match('/^Dasar: (.+)$/m', $notes, $match)) {
+        if (str_starts_with($notes, 'Catatan AI ·') && preg_match('/^Dasar: (.+)$/m', $notes, $match)) {
             $basis = $match[1];
         }
 

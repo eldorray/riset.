@@ -135,18 +135,18 @@ it('menulis dan menyimpan bagian kosong dengan target kata dan parafrase', funct
         && str_contains($request['messages'][1]['content'], 'parafrase'));
 });
 
-it('menulis ulang dengan parafrase tanpa kehilangan sitasi lama', function () {
-    $project = Project::factory()->withOutline()->create();
-    $cited = Reference::factory()->for($project)->create(['notes' => 'Ringkasan isi sumber untuk mendukung teks parafrase.']);
-    $project->update(['draft' => ['s1' => "Teks lama [@{$cited->id}]."]]);
-    aiSays(['text' => "Versi parafrase [@{$cited->id}].", 'limitations' => '']);
+it('tidak menyediakan mode tulis ulang massal dengan parafrase', function () {
+    $project = Project::factory()->withOutline()->create(['draft' => ['s1' => 'Teks lama.']]);
+    Http::fake();
 
     $this->actingAs($project->user)->postJson("/projects/{$project->id}/manuscript/section", [
         'unit' => 's1', 'references' => [], 'target_words' => 300, 'mode' => 'rewrite',
-    ])->assertOk();
+    ])->assertJsonValidationErrors('mode');
+    $this->postJson("/projects/{$project->id}/writing", ['kind' => 'manuscript', 'references' => [], 'mode' => 'rewrite', 'target_words' => 1000])
+        ->assertJsonValidationErrors('mode');
 
-    expect($project->fresh()->draft['s1'])->toBe("Versi parafrase [@{$cited->id}].");
-    Http::assertSent(fn ($request) => str_contains($request['messages'][1]['content'], 'ditulis ulang dengan parafrase'));
+    expect($project->fresh()->draft['s1'])->toBe('Teks lama.');
+    Http::assertNothingSent();
 });
 
 it('tidak menyimpan apa pun bila penulisan bagian gagal', function () {

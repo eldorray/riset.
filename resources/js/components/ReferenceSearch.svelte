@@ -43,6 +43,7 @@
     >({ q: '', source: 'all', index: 'all', scope: 'all', year_from: '', year_to: '', type: 'any', open_access: 0, page: 1 });
 
     const scopusSelected = $derived(searcher.index === 'scopus' || searcher.source === 'scopus');
+    const activeFilters = $derived([searcher.source !== 'all', searcher.index !== 'all', searcher.scope !== 'all', searcher.year_from !== '', searcher.year_to !== '', searcher.type !== 'any', searcher.open_access === 1].filter(Boolean).length);
 
     function selectIndex() {
         searcher.source = searcher.index === 'all' ? 'all' : searcher.index;
@@ -155,6 +156,10 @@
             {#if searcher.errors.q}<span class="error">{searcher.errors.q}</span>{/if}
         </div>
 
+        <p class="help -mt-2">Cari lagi dengan kata kunci yang sama untuk judul lain; referensi tersimpan tidak ditampilkan ulang. Nama penyedia bukan bukti kredibilitas — periksa tautan asal.</p>
+        <details class="group rounded-lg border border-line">
+            <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3.5 text-sm font-semibold [&::-webkit-details-marker]:hidden"><Icon name="caret" size={16} class="-rotate-90 transition-transform group-open:rotate-0 motion-reduce:transition-none" /> Filter lanjutan{#if activeFilters}<span class="badge badge-ai">{activeFilters} aktif</span>{/if}</summary>
+            <div class="flex flex-col gap-3 border-t border-line p-3.5">
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 md:items-end">
             <div class="field col-span-2 md:col-span-1">
                 <label for="source" class="text-[13px] font-semibold">Sumber</label>
@@ -200,10 +205,6 @@
                 Akses terbuka
             </label>
         </div>
-        {#if searcher.errors.index}<span class="error">{searcher.errors.index}</span>{/if}
-        {#if searcher.errors.year_from || searcher.errors.year_to}
-            <span class="error">{searcher.errors.year_to ?? searcher.errors.year_from}</span>
-        {/if}
         {#if searcher.scope !== 'all'}
             <p id="scope-help" class="help rounded-lg bg-paper px-3 py-2">
                 <span class="font-semibold text-ink">Filter ketat:</span>
@@ -215,9 +216,13 @@
             <a href="https://sinta.kemdiktisaintek.go.id/journals/index/" target="_blank" rel="noopener noreferrer" class="text-primary underline">periksa jurnal di SINTA</a>.
         </p>
         {#if scopusSelected}<p id="scope-help" class="help">Scopus memakai akses API Elsevier. Cakupan negara penerbit jurnal tidak tersedia pada pencarian ini. Hasil dokumen tidak menjamin jurnal masih aktif terindeks atau memiliki kuartil tertentu.</p>{/if}
-        <p class="help">
-            Semua sumber umum: Crossref, OpenAlex, Semantic Scholar, DOAJ. Scopus dipakai saat sumber atau filter Scopus dipilih. Klik lagi dengan kata kunci yang sama untuk judul lain; referensi yang sudah tersimpan tidak ditampilkan lagi. Nama penyedia bukan bukti kredibilitas — periksa tautan asal.
-        </p>
+        <p class="help">Semua sumber umum: Crossref, OpenAlex, Semantic Scholar, DOAJ. Scopus dipakai saat sumber atau filter Scopus dipilih.</p>
+            </div>
+        </details>
+        {#if searcher.errors.index}<span class="error">{searcher.errors.index}</span>{/if}
+        {#if searcher.errors.year_from || searcher.errors.year_to}
+            <span class="error">{searcher.errors.year_to ?? searcher.errors.year_from}</span>
+        {/if}
     </form>
 
     {#each notes as note (note)}

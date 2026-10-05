@@ -22,6 +22,8 @@
         next: { label: string; href: string };
         empty_href: string;
         review_href: string;
+        design_ready: boolean;
+        needs_data: boolean;
     };
 
     let {
@@ -78,6 +80,13 @@
             status: readiness.references_incomplete ? 'warn' : readiness.references ? 'ok' : 'empty',
             badge: readiness.references_incomplete ? 'Perlu dilengkapi' : readiness.references ? 'Tersimpan' : 'Belum',
             href: projects.references.index(project.id).url,
+        },
+        {
+            title: 'Rancangan penelitian',
+            detail: readiness.design_ready ? (readiness.needs_data ? 'Rancangan terisi · data penelitian belum diisi' : project.literature_study ? 'Studi literatur · rancangan terisi' : 'Rancangan dan data terisi') : 'Isi masalah, pendekatan, dan teknik analisis',
+            status: readiness.design_ready ? (readiness.needs_data ? 'warn' : 'ok') : 'empty',
+            badge: readiness.design_ready ? (readiness.needs_data ? 'Tanpa data' : 'Terisi') : 'Belum',
+            href: `/projects/${project.id}/rancangan`,
         },
         {
             title: 'Gaya sitasi',
@@ -156,7 +165,7 @@
                             <span class="text-sm text-ink-2">{step.detail}</span>
                         </div>
                         <span class="col-start-2 justify-self-start sm:col-start-auto badge {step.status === 'ok' ? 'badge-ok' : step.status === 'warn' ? 'badge-warn' : 'badge-empty'}">{step.badge}</span>
-                        <Link href={step.href} class="col-start-2 justify-self-start sm:col-start-auto sm:justify-self-stretch btn btn-secondary">Buka</Link>
+                        <Link href={step.href} class="col-start-2 justify-self-start sm:col-start-auto sm:justify-self-stretch btn btn-secondary" aria-label="Buka {step.title}">Buka</Link>
                     </li>
                 {/each}
             </ol>
@@ -177,7 +186,7 @@
                         <option value={style.value}>{style.label}</option>
                     {/each}
                 </select>
-                <span id="style-help" class="help">Hanya gaya yang diaktifkan admin yang dapat dipilih.</span>
+                <span id="style-help" class="help">{#if styleForm.processing}<span role="status">Menyimpan…</span>{:else if styleForm.recentlySuccessful}<span role="status" class="text-ok">Tersimpan.</span>{:else}Hanya gaya yang diaktifkan admin yang dapat dipilih.{/if}</span>
             </section>
             <section class="card flex flex-col gap-2.5 px-6 py-5.5">
                 <label for="template" class="label">Format Word</label>
@@ -193,7 +202,7 @@
                         <option value={t.id}>{t.name}</option>
                     {/each}
                 </select>
-                <span id="template-help" class="help">Template institusi diatur admin: font, spasi, margin, halaman judul, daftar isi.</span>
+                <span id="template-help" class="help">{#if templateForm.processing}<span role="status">Menyimpan…</span>{:else if templateForm.recentlySuccessful}<span role="status" class="text-ok">Tersimpan.</span>{:else}Template institusi diatur admin: font, spasi, margin, halaman judul, daftar isi.{/if}</span>
             </section>
             <section class="card flex flex-col gap-3 px-6 py-5.5">
                 <h2 class="section-label">Rincian</h2>

@@ -12,6 +12,9 @@ export type ProjectSummary = {
     filled: number;
     front_parts: number;
     front_filled: number;
+    design_ready: boolean;
+    has_data: boolean;
+    literature_study: boolean;
     created_at: string | null;
     updated_at: string | null;
 };
@@ -19,7 +22,8 @@ export type ProjectSummary = {
 export type Section = { id: string; title: string };
 export type Chapter = { id: string; title: string; sections: Section[] };
 
-export type Unit = { id: string; number: string; title: string; level: 1 | 2 };
+export type UnitKind = 'literatur' | 'metode' | 'empiris';
+export type Unit = { id: string; number: string; title: string; level: 1 | 2; kind: UnitKind };
 
 export type Segment = { text: string; italic: boolean };
 

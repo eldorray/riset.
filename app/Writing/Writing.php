@@ -34,14 +34,19 @@ final class Writing
                     ->mapWithKeys(fn (Reference $reference) => [$reference->id => GenerateResearchGap::fingerprint($reference, false)])->all();
                 $payload['project_title'] = $project->title;
             }
+            if ($data['kind'] === 'draft') {
+                $unit = $project->unit((string) $data['unit']);
+                abort_if($unit && ($reason = $project->blockedReason($unit)), 422, $reason ?? '');
+            }
             $payload['steps'] = $this->steps($project, $payload);
+            $payload['skipped'] = $this->skipped($project, $payload);
             $keys = array_column($payload['steps'], 'key');
             foreach (WritingRun::query()->where('project_id', $project->id)->where('has_suggestions', true)->get() as $pending) {
                 foreach ($pending->results as $result) {
                     abort_if(($result['review'] ?? null) === 'pending' && ($data['kind'] === 'manuscript' || in_array($result['key'], $keys, true)), 409, 'Pakai atau buang usulan sebelumnya untuk bagian ini terlebih dahulu.');
                 }
             }
-            abort_if($payload['steps'] === [], 422, 'Tidak ada bagian yang perlu ditulis.');
+            abort_if($payload['steps'] === [], 422, $payload['skipped'] !== [] ? 'Bagian kosong yang tersisa memerlukan rancangan atau data penelitian. Lengkapi di Rancangan penelitian.' : 'Tidak ada bagian yang perlu ditulis.');
             $run = WritingRun::query()->create([
                 'project_id' => $project->id, 'user_id' => $project->user_id, 'kind' => $data['kind'],
                 'payload' => $payload, 'results' => [],
@@ -77,7 +82,7 @@ final class Writing
             if ($data['kind'] === 'draft_all' && ! in_array($unit['id'], $data['units'], true)) {
                 continue;
             }
-            if (($data['kind'] === 'draft_all' || ($data['kind'] === 'manuscript' && $data['mode'] === 'fill')) && trim($data['draft'][$unit['id']] ?? '') !== '') {
+            if (in_array($data['kind'], ['draft_all', 'manuscript'], true) && (trim($data['draft'][$unit['id']] ?? '') !== '' || $project->blockedReason($unit) !== null)) {
                 continue;
             }
             $steps[] = ['type' => 'draft', 'key' => $unit['id'], 'label' => $unit['number'].' '.$unit['title'], 'unit' => $unit];
@@ -85,11 +90,11 @@ final class Writing
         $bodyCount = count($steps);
         if ($data['kind'] === 'manuscript') {
             foreach ($project->document_type->frontMatter() as $part) {
-                if ($data['mode'] === 'rewrite' || trim($data['front'][$part['key']]['text'] ?? '') === '') {
+                if (trim($data['front'][$part['key']]['text'] ?? '') === '') {
                     $steps[] = ['type' => 'front', 'key' => $part['key'], 'label' => $part['label']];
                 }
             }
-            $remaining = $data['mode'] === 'fill' ? max($data['target_words'] - $project->words(), $bodyCount * 150) : $data['target_words'];
+            $remaining = max($data['target_words'] - $project->words(), $bodyCount * 150);
             $words = min(4000, max(150, (int) round(($remaining - (count($steps) - $bodyCount) * 250) / max($bodyCount, 1))));
             foreach ($steps as &$step) {
                 $step['target_words'] = $words;
@@ -97,6 +102,26 @@ final class Writing
         }
 
         return $steps;
+    }
+
+    /**
+     * Bagian kosong yang dilewati penulisan massal karena rancangan/data penelitian belum ada.
+     *
+     * @param  array<string, mixed>  $data
+     * @return list<string>
+     */
+    private function skipped(Project $project, array $data): array
+    {
+        if (! in_array($data['kind'], ['draft_all', 'manuscript'], true)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $unit): string => $unit['number'].' '.$unit['title'],
+            array_filter($project->units(), fn (array $unit): bool => trim($data['draft'][$unit['id']] ?? '') === ''
+                && ($data['kind'] === 'manuscript' || in_array($unit['id'], $data['units'], true))
+                && $project->blockedReason($unit) !== null),
+        ));
     }
 
     /** @return array<string, mixed> */
@@ -128,7 +153,7 @@ final class Writing
             'id' => $run->id, 'kind' => $run->kind, 'status' => $run->status, 'stop_requested' => $run->stop_requested,
             'done' => $run->cursor, 'total' => count($steps), 'label' => $steps[$run->cursor]['label'] ?? 'Selesai',
             'key' => $steps[$run->cursor]['key'] ?? null, 'references_count' => count($run->payload['references'] ?? []),
-            'error' => $run->error, 'target_words' => $run->payload['target_words'] ?? null,
+            'error' => $run->error, 'target_words' => $run->payload['target_words'] ?? null, 'skipped' => $run->payload['skipped'] ?? [],
             'results' => array_map(fn (array $r): array => array_intersect_key($r, array_flip(['key', 'label', 'type', 'status', 'error', 'limitations'])), $run->results),
             'updated_at' => $run->updated_at->toIso8601String(),
         ];
@@ -183,6 +208,7 @@ final class Writing
                     $project->update(['outline' => $result['outline']]);
                     $payload = $current->payload;
                     $payload['steps'] = [...$payload['steps'], ...$this->steps($project, $payload)];
+                    $payload['skipped'] = $this->skipped($project, $payload);
                     $current->payload = $payload;
                 } elseif ($current->kind === 'manuscript') {
                     $this->saveResult($project, $step, $result, false);
@@ -233,7 +259,7 @@ final class Writing
         if ($step['type'] === 'outline') {
             abort_if(($project->outline ?? []) !== [], 409, 'Kerangka telah berubah selama penulisan.');
         } elseif ($step['type'] === 'draft') {
-            abort_unless(collect($project->units())->firstWhere('id', $step['key']) === $step['unit'], 409, 'Kerangka bagian ini berubah.');
+            abort_unless($project->unit($step['key']) === $step['unit'], 409, 'Kerangka bagian ini berubah.');
             if ($run->kind === 'manuscript') {
                 abort_if(($project->draft[$step['key']] ?? '') !== ($run->payload['draft'][$step['key']] ?? ''), 409, 'Bagian ini sudah diedit. Tulisan terbaru tidak ditimpa.');
             }
@@ -283,14 +309,11 @@ final class Writing
             return app(GenerateFrontMatter::class)($project, $step['key']);
         }
         $ids = $run->payload['references'];
-        if (($run->payload['mode'] ?? '') === 'rewrite') {
-            $ids = array_values(array_unique([...$ids, ...Markers::ids($run->payload['draft'][$step['key']] ?? '')]));
-        }
         $references = $project->references()->whereKey($ids)->get();
         abort_unless($references->count() === count($ids), 409, 'Referensi terpilih berubah. Periksa pilihan sumber sebelum melanjutkan.');
         $project->draft = $run->payload['draft'];
 
-        return app(GenerateDraftSection::class)($project, $step['unit'], $references, $step['target_words'] ?? null, ($run->payload['mode'] ?? '') === 'rewrite' ? 'rewrite' : 'continue');
+        return app(GenerateDraftSection::class)($project, $step['unit'], $references, $step['target_words'] ?? null);
     }
 
     /** @param array<string, mixed> $step

@@ -6,7 +6,7 @@
     import projects from '@/routes/projects';
     import { errorMessage } from '@/lib/format';
 
-    let { documentType, onselect }: { documentType: string; onselect: (title: string) => void } = $props();
+    let { documentType, onselect }: { documentType: string; onselect: (title: string, idea: string) => void } = $props();
     type Turn = { question: string; answer: string; feedback?: string };
     type Result = { feedback: string; question?: string; titles?: { title: string; reason: string }[] };
     const discussion = useHttp<{ document_type: string; turns: Turn[] }, Result>({ document_type: '', turns: [] });
@@ -89,7 +89,7 @@
                     <div class="flex flex-col gap-2 rounded-lg border border-line p-4">
                         <h4 class="font-medium">{i + 1}. {suggestion.title}</h4>
                         <p class="text-sm leading-relaxed text-ink-2">{suggestion.reason}</p>
-                        <button type="button" class="btn btn-secondary self-start" onclick={() => onselect(suggestion.title)}>Pakai judul</button>
+                        <button type="button" class="btn btn-secondary self-start" onclick={() => onselect(suggestion.title, turns.map((turn) => `${turn.question}\n${turn.answer}`).join('\n\n'))}>Pakai judul</button>
                     </div>
                 {/each}
             </div>

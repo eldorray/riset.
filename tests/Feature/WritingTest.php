@@ -191,7 +191,9 @@ it('retains a usable failover queue connection', function () {
 });
 
 it('creates a missing outline then finishes an article across queued steps including abstracts', function () {
-    $this->project->update(['document_type' => 'artikel', 'outline' => null]);
+    $this->project->update(['document_type' => 'artikel', 'outline' => null,
+        'research_design' => ['masalah' => 'Bagaimana pengalaman siswa?', 'pendekatan' => 'kualitatif', 'analisis' => 'Analisis tematik'],
+        'research_data' => 'Wawancara menghasilkan tema motivasi dan akses perangkat.']);
     $url = "/projects/{$this->project->id}/writing";
     $id = $this->postJson($url, ['kind' => 'manuscript', 'references' => [], 'mode' => 'fill', 'target_words' => 1000])->assertAccepted()->json('run.id');
     Http::fake(['ai.test/*' => Http::sequence()

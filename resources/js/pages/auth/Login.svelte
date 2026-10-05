@@ -52,7 +52,7 @@
                 <Link href="/" aria-label="Riset, halaman awal" class="font-display text-[28px] leading-none font-medium tracking-tight lg:hidden"><AppLogo /></Link>
                 <h1 class="font-display text-[30px] sm:text-[40px] leading-tight font-medium">Masuk</h1>
                 <p class="text-[15px] leading-relaxed text-ink-2">
-                    Gunakan akun Google, atau email dan password dari admin.
+                    {googleConfigured ? 'Gunakan akun Google, atau email dan password dari admin.' : 'Gunakan email dan password dari admin.'}
                 </p>
             </div>
 
@@ -63,17 +63,12 @@
                 </div>
             {/if}
 
-            {#if !googleConfigured}
-                <p class="text-[13px] leading-normal text-ink-3">
-                    Masuk dengan Google belum dikonfigurasi (<code class="font-mono text-xs">GOOGLE_CLIENT_ID</code> di <code class="font-mono text-xs">.env</code>).
-                </p>
-            {/if}
-
+            {#if googleConfigured}
             <!-- Tautan biasa, bukan Inertia: Google butuh redirect halaman penuh. -->
             <a
                 href={auth.google().url}
-                class="btn btn-secondary h-13 text-[15px] {redirecting || !googleConfigured ? 'pointer-events-none opacity-60' : ''}"
-                aria-disabled={redirecting || !googleConfigured}
+                class="btn btn-secondary h-13 text-[15px] {redirecting ? 'pointer-events-none opacity-60' : ''}"
+                aria-disabled={redirecting}
                 onclick={() => (redirecting = true)}
             >
                 {#if redirecting}
@@ -92,6 +87,7 @@
             <div class="flex items-center gap-3 text-xs text-ink-3" aria-hidden="true">
                 <span class="h-px grow bg-line"></span>atau<span class="h-px grow bg-line"></span>
             </div>
+            {/if}
 
             <form class="flex flex-col gap-4" onsubmit={submit} novalidate aria-label="Masuk dengan email">
                 <div class="field">
@@ -101,8 +97,8 @@
                 </div>
                 <div class="field">
                     <label for="password" class="label">Password</label>
-                    <input id="password" type="password" autocomplete="current-password" class="input" bind:value={form.password} aria-invalid={form.errors.password ? 'true' : undefined} />
-                    {#if form.errors.password}<span class="error">{form.errors.password}</span>{/if}
+                    <input id="password" type="password" autocomplete="current-password" class="input" bind:value={form.password} aria-invalid={form.errors.password ? 'true' : undefined} aria-describedby={form.errors.password ? 'password-error' : undefined} />
+                    {#if form.errors.password}<span id="password-error" class="error">{form.errors.password}</span>{/if}
                 </div>
                 <label class="flex min-h-11 items-center gap-2.5 text-sm">
                     <input type="checkbox" bind:checked={form.remember} class="size-4.5 accent-primary" /> Ingat saya

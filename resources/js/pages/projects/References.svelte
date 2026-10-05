@@ -17,6 +17,7 @@
         source_name: string | null;
         input_method: string;
         notes: string | null;
+        notes_pending: boolean;
         metadata: ReferenceMetadata;
         missing: string[];
         in_text: string | null;
@@ -37,6 +38,7 @@
         source_name: '',
         input_method: 'manual',
         notes: '',
+        notes_reviewed: false,
         metadata: { open_access_url: '', type: 'article', authors: [] as string[], year: '', publication: '', volume: '', issue: '', pages: '', publisher: '', doi: '', keywords: [] as string[] },
     };
 
@@ -160,6 +162,7 @@
         form.source_name = reference.source_name ?? '';
         form.input_method = reference.input_method;
         form.notes = reference.notes ?? '';
+        form.notes_reviewed = false;
         form.metadata = { ...empty.metadata, ...reference.metadata };
         authorsText = (reference.metadata.authors ?? []).join('\n');
         keywordsText = (reference.metadata.keywords ?? []).join(', ');
@@ -232,7 +235,7 @@
         <section class="flex flex-col gap-3" aria-labelledby="saved">
             <h2 id="saved" class="section-label">Tersimpan di proyek</h2>
             {#if readError}<p role="alert" class="error">{readError}</p>{/if}
-            <details class="text-sm"><summary class="cursor-pointer text-primary">Perkiraan kredit pembacaan artikel</summary><div class="mt-2"><AiCost inputCharacters={30000} outputWords={350} detail="Dasar perkiraan: artikel sekitar 30.000 karakter. Artikel lebih panjang membutuhkan lebih banyak kredit." /></div></details>
+            {#if references.length}<div><span class="text-xs text-ink-2">Baca artikel dengan AI (menu ⋯ di kartu):</span><AiCost inputCharacters={30000} outputWords={350} detail="Dasar perkiraan: artikel sekitar 30.000 karakter. Artikel lebih panjang membutuhkan lebih banyak kredit." /></div>{/if}
             {#if reading}<p role="status" class="help">Mengunduh dan membaca artikel dengan AI… Catatan akan disimpan setelah selesai.</p>{/if}
             {#if references.length === 0}
                 <div class="flex flex-col items-start gap-2.5 rounded-[10px] border border-dashed border-line-strong p-8">
@@ -241,44 +244,53 @@
                 </div>
             {/if}
             {#each references as reference (reference.id)}
-                <article class="card flex flex-col gap-2.5 px-5.5 py-5 {editing === reference.id ? 'border-primary shadow-[0_0_0_1px_var(--color-primary)]' : ''}">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="badge"><Icon name={reference.input_method === 'manual' ? 'pen' : 'search'} size={13} /> {reference.input_method === 'manual' ? 'Input manual' : `Hasil pencarian · ${reference.source_name ?? 'penyedia'}`}</span>
-                        <span class="badge">{types[reference.metadata.type ?? 'article']}</span>
-                        {#if reference.missing.length}
-                            <span class="badge badge-warn"><Icon name="warn" size={13} /> Belum lengkap: {reference.missing.join(', ').toLowerCase()}</span>
-                        {/if}
-                    </div>
-                    <div class="flex flex-wrap gap-2"><span class="badge {reference.missing.length ? 'badge-warn' : 'badge-ok'}">{reference.missing.length ? 'Sitasi perlu dilengkapi' : 'Siap untuk sitasi'}</span><span class="badge {reference.notes?.trim() ? 'badge-ok' : 'badge-warn'}">{reference.notes?.trim() ? 'Punya catatan isi untuk AI' : 'Catatan isi belum ada'}</span></div>
-                    {#if reference.metadata.keywords?.length}<div class="flex flex-wrap gap-1.5">{#each reference.metadata.keywords as keyword (keyword)}<span class="badge">{keyword}</span>{/each}</div>{/if}
+                {@const hasNotes = !!reference.notes?.trim()}
+                <article class="card flex flex-col gap-2 px-5.5 py-5 {editing === reference.id ? 'border-primary shadow-[0_0_0_1px_var(--color-primary)]' : ''}">
+                    <p class="text-xs text-ink-3">{types[reference.metadata.type ?? 'article']} · {reference.input_method === 'manual' ? 'input manual' : `dari ${reference.source_name ?? 'pencarian'}`}</p>
                     <h3 class="font-display text-[19px] leading-snug font-medium">{reference.title}</h3>
                     <p class="text-sm text-ink-2">
                         {reference.in_text ?? ([reference.metadata.authors?.join('; '), reference.metadata.year].filter(Boolean).join(' · ') || 'Penulis dan tahun belum ada')}
                         {#if reference.metadata.publication} · <em>{reference.metadata.publication}</em>{/if}
                     </p>
-                    <button type="button" class="btn btn-secondary self-start" onclick={() => readArticle(reference)} disabled={reading !== null}><Icon name={reading === reference.id ? 'spinner' : 'book'} size={16} /> {reading === reference.id ? 'Membaca artikel…' : 'Baca artikel dengan AI'}</button>
+                    <p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+                        {#if reference.missing.length}
+                            <span class="inline-flex items-center gap-1.5 font-semibold text-warn"><Icon name="warn" size={15} /> Perlu {reference.missing.join(', ').toLowerCase()} untuk sitasi</span>
+                        {:else}
+                            <span class="inline-flex items-center gap-1.5 font-medium text-ok"><Icon name="check" size={15} /> Siap untuk sitasi</span>
+                        {/if}
+                        {#if reference.notes_pending}<span class="inline-flex items-center gap-1.5 font-semibold text-warn"><Icon name="warn" size={15} /> Catatan AI belum ditinjau — belum dipakai untuk sitasi</span>
+                        {:else if !hasNotes}<span class="inline-flex items-center gap-1.5 text-ink-2"><span class="size-2.5 rounded-full border-[1.5px] border-ink-3" aria-hidden="true"></span> Catatan isi kosong — AI tidak menyimpulkan isi sumber ini</span>{/if}
+                    </p>
+                    {#if reading === reference.id}<p class="inline-flex items-center gap-2 text-[13px] font-medium text-ai"><Icon name="spinner" size={14} /> Membaca artikel dengan AI…</p>{/if}
                     {#if reference.notes}
                         <p class="line-clamp-2 text-[13px] leading-normal text-ink-2"><span class="font-semibold text-ink">Catatan:</span> {reference.notes}</p>
-                    {:else}
-                        <p class="text-[13px] text-ink-3">Tanpa catatan — AI tidak akan menyimpulkan isi sumber ini.</p>
                     {/if}
-                    <div class="flex items-center justify-between gap-3 border-t border-sunken pt-2.5">
+                    {#if reference.metadata.keywords?.length}<p class="text-xs text-ink-3">{reference.metadata.keywords.join(' · ')}</p>{/if}
+                    <div class="flex items-center justify-between gap-2 border-t border-sunken pt-2.5">
                         <a href={reference.source_url} target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 min-w-0 items-center gap-1.5 font-mono text-[13px] text-primary">
                             <span class="truncate">{reference.source_url.replace(/^https?:\/\//, '')}</span>
                             <Icon name="external" size={14} />
                         </a>
-                        <div class="flex shrink-0 gap-1.5">
-                            <button type="button" class="btn btn-ghost btn-icon text-ink-2 hover:text-danger" onclick={() => remove(reference)} disabled={removing === reference.id} aria-label="Hapus {reference.title}" title="Hapus dari proyek">
-                                <Icon name={removing === reference.id ? 'spinner' : 'trash'} size={17} />
+                        <div class="flex shrink-0 gap-1">
+                            <button type="button" popovertarget="ref-menu-{reference.id}" class="btn btn-ghost btn-icon text-ink-2" aria-label="Opsi lain untuk {reference.title}" disabled={removing === reference.id}>
+                                <Icon name={removing === reference.id ? 'spinner' : 'more'} size={18} />
                             </button>
-                            <button type="button" class="btn {reference.missing.length ? 'btn-primary' : 'btn-secondary'}" onclick={() => { edit(reference); queueMicrotask(() => document.getElementById(reference.missing.length ? 'ref-title' : 'notes')?.focus()); }}>
-                                {reference.missing.length ? 'Lengkapi metadata' : !reference.notes?.trim() ? 'Isi catatan sumber' : 'Ubah'}
+                            <button type="button" class="btn {reference.missing.length || reference.notes_pending ? 'btn-primary' : 'btn-secondary'}" onclick={() => { edit(reference); queueMicrotask(() => document.getElementById(reference.missing.length ? 'ref-title' : 'notes')?.focus()); }}>
+                                {reference.missing.length ? 'Lengkapi' : reference.notes_pending ? 'Tinjau catatan' : !hasNotes ? 'Isi catatan' : 'Ubah'}
                             </button>
                         </div>
                     </div>
                     {#if reference.cited_in.length}
                         <p class="-mt-1 text-xs text-ink-3">Disitasi di bagian {reference.cited_in.join(', ')} — sitasinya ikut terhapus bila referensi dihapus</p>
                     {/if}
+                    <div id="ref-menu-{reference.id}" popover class="sheet">
+                        <span class="mx-auto mb-3 block h-1 w-10 rounded-full bg-line-strong sm:hidden" aria-hidden="true"></span>
+                        <p class="line-clamp-2 border-b border-line px-3 pb-3 text-sm font-semibold">{reference.title}</p>
+                        <div class="flex flex-col gap-0.5 pt-2">
+                            <button type="button" class="btn btn-ghost justify-start px-3" disabled={reading !== null} onclick={(event) => { (event.currentTarget.closest('[popover]') as HTMLElement | null)?.hidePopover(); readArticle(reference); }}><Icon name="book" /> {hasNotes ? 'Baca ulang artikel dengan AI' : 'Baca artikel dengan AI'}</button>
+                            <button type="button" class="btn btn-ghost justify-start px-3 text-danger" onclick={(event) => { (event.currentTarget.closest('[popover]') as HTMLElement | null)?.hidePopover(); remove(reference); }}><Icon name="trash" /> Hapus dari proyek</button>
+                        </div>
+                    </div>
                 </article>
             {/each}
         </section>
@@ -401,6 +413,12 @@
                 <textarea id="notes" rows="4" class="input" bind:value={form.notes} aria-describedby="notes-help"></textarea>
                 <span id="notes-help" class="help">Tulis poin penting dari sumber ini dengan kata-kata Anda. Hanya catatan ini yang boleh dipakai AI sebagai isi sumber.</span>
                 {#if err('notes')}<span class="error">{err('notes')}</span>{/if}
+                {#if form.notes.startsWith('Catatan AI · belum diperiksa')}
+                    <label class="mt-1 flex items-start gap-2.5 rounded-lg border border-warn-line bg-warn-soft px-3 py-2.5 text-sm">
+                        <input type="checkbox" bind:checked={form.notes_reviewed} class="mt-0.5 size-4.5 shrink-0 accent-primary" />
+                        <span>Saya sudah memeriksa catatan AI ini terhadap artikel asli. Tanpa centang ini, catatan tidak dipakai untuk sitasi.</span>
+                    </label>
+                {/if}
             </div>
 
             <button type="submit" class="btn btn-primary" disabled={form.processing || importing}>

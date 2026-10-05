@@ -38,6 +38,33 @@ class Reference extends Model
 
     protected $table = 'project_references';
 
+    /** Baris pertama catatan hasil baca AI; diganti REVIEWED setelah pengguna memeriksanya. */
+    public const AI_NOTES_PENDING = 'Catatan AI · belum diperiksa';
+
+    public const AI_NOTES_REVIEWED = 'Catatan AI · ditinjau pengguna';
+
+    /** Catatan AI yang belum diperiksa pengguna tidak boleh menjadi dasar sitasi. */
+    public function notesPending(): bool
+    {
+        return str_starts_with((string) $this->notes, self::AI_NOTES_PENDING);
+    }
+
+    public function notesUsable(): bool
+    {
+        return filled($this->notes) && ! $this->notesPending();
+    }
+
+    /** Catatan AI yang hanya berdasar abstrak: cukup untuk gambaran umum, bukan detail metode atau angka. */
+    public function abstractOnly(): bool
+    {
+        return str_contains((string) $this->notes, "\nDasar: Abstrak saja");
+    }
+
+    public static function markReviewed(string $notes): string
+    {
+        return str_starts_with($notes, self::AI_NOTES_PENDING) ? self::AI_NOTES_REVIEWED.substr($notes, strlen(self::AI_NOTES_PENDING)) : $notes;
+    }
+
     protected function casts(): array
     {
         return [

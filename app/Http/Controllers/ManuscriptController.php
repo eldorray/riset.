@@ -69,7 +69,8 @@ final class ManuscriptController extends Controller
             'references' => $project->references->map(fn (Reference $reference): array => [
                 'id' => $reference->id,
                 'label' => $style->isComplete($reference) ? $style->label($reference) : $reference->title,
-                'has_notes' => filled($reference->notes),
+                'has_notes' => $reference->notesUsable(),
+                'notes_pending' => $reference->notesPending(),
                 'note_chars' => mb_strlen($reference->notes ?? ''),
             ])->values(),
         ]);
@@ -169,8 +170,8 @@ final class ManuscriptController extends Controller
     }
 
     /**
-     * Tulis satu bagian dengan target kata lalu langsung simpan dan tandai AI. Mode "fill" tidak
-     * menyentuh bagian yang sudah berisi; "rewrite" menulis ulang dengan parafrase. Gagal = draf utuh.
+     * Tulis satu bagian kosong dengan target kata lalu langsung simpan dan tandai AI. Bagian yang
+     * sudah berisi tidak disentuh (tidak ada mode tulis ulang massal). Gagal = draf utuh.
      */
     public function section(Request $request, Project $project, GenerateDraftSection $generate): JsonResponse
     {
@@ -181,23 +182,22 @@ final class ManuscriptController extends Controller
             'references' => ['present', 'array', 'max:40'],
             'references.*' => ['integer', 'distinct', Rule::exists('project_references', 'id')->where('project_id', $project->id)->whereNull('deleted_at')],
             'target_words' => ['required', 'integer', 'between:100,4000'],
-            'mode' => ['required', Rule::in(['fill', 'rewrite'])],
+            'mode' => ['required', Rule::in(['fill'])],
         ]);
 
-        $unit = collect($project->units())->firstWhere('id', $data['unit']);
+        $unit = $project->unit($data['unit']);
+        abort_if($unit === null, 409, 'Kerangka berubah. Muat ulang halaman.');
         $original = $project->draft[$data['unit']] ?? '';
         $existing = trim($original);
 
-        if ($data['mode'] === 'fill' && $existing !== '') {
+        if ($existing !== '') {
             return response()->json(['skipped' => true]);
         }
 
-        // Mode tulis ulang: referensi yang sudah disitasi di teks lama ikut diizinkan agar sitasinya tetap.
-        $ids = array_values(array_unique([...$data['references'], ...($data['mode'] === 'rewrite' ? Markers::ids($existing) : [])]));
-        $references = $project->references()->whereKey($ids)->get();
+        $references = $project->references()->whereKey($data['references'])->get();
 
         try {
-            $result = $generate($project, $unit, $references, (int) $data['target_words'], $data['mode'] === 'rewrite' ? 'rewrite' : 'continue');
+            $result = $generate($project, $unit, $references, (int) $data['target_words']);
         } catch (AiException $e) {
             report($e);
 
@@ -207,7 +207,7 @@ final class ManuscriptController extends Controller
         DB::transaction(function () use ($project, $data, $unit, $original, $result): void {
             $current = Project::query()->lockForUpdate()->findOrFail($project->id);
             abort_if(($current->draft[$data['unit']] ?? '') !== $original
-                || collect($current->units())->firstWhere('id', $data['unit']) !== $unit,
+                || $current->unit($data['unit']) !== $unit,
                 409, 'Bagian ini berubah selama AI berjalan. Edit terbaru tetap tersimpan.');
             $cited = Markers::ids($result['text']);
             abort_if($current->references()->whereKey($cited)->count() !== count($cited), 409, 'Referensi berubah selama AI berjalan. Draf tetap tersimpan.');

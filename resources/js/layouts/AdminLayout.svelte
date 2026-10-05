@@ -6,6 +6,7 @@
     import FlashMessage from '@/components/FlashMessage.svelte';
     import Icon from '@/components/Icon.svelte';
     import type { IconName } from '@/components/Icon.svelte';
+    import AccountMenu from '@/components/AccountMenu.svelte';
     import { logout } from '@/routes';
     import admin from '@/routes/admin';
     import projects from '@/routes/projects';
@@ -33,26 +34,34 @@
             ],
         },
     ];
+    const current = $derived(groups.flatMap((group) => group.items).find((item) => item.id === active));
 </script>
 
 <AppHead title="Admin · {title}" />
 
 <div class="flex min-h-dvh flex-col bg-paper text-ink lg:flex-row">
-    <header class="mobile-header border-b border-line bg-sunken px-4 py-3 lg:hidden">
-        <div class="flex min-w-0 items-center justify-between gap-3">
-            <span class="font-display text-2xl font-medium"><AppLogo /></span>
-            <span class="min-w-0 truncate text-sm text-ink-2">Admin · {title}</span>
-        </div>
-        <details class="mt-2">
-            <summary class="min-h-11 cursor-pointer rounded-md border border-line-strong bg-surface px-3 py-2.5 text-sm font-semibold">Menu admin</summary>
-            <nav aria-label="Navigasi admin seluler" class="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
-                {#each groups as group (group.label)}{#each group.items as item (item.id)}<Link href={item.href} aria-current={item.id === active ? 'page' : undefined} class="btn btn-ghost justify-start {item.id === active ? 'bg-surface text-primary' : ''}"><Icon name={item.icon} />{item.label}</Link>{/each}{/each}<Link href={projects.index().url} class="btn btn-ghost justify-start">Proyek saya</Link>
-                <Link href="/account/subscription" class="btn btn-ghost">Paket & Kredit · {user?.unlimited ? 'Unlimited' : `${user?.credits ?? 0} kredit`}</Link>
-                <Link href="/account/password" class="btn btn-ghost justify-start">Ubah password</Link>
-                <button type="button" class="btn btn-ghost justify-start" onclick={() => router.post(logout().url)}>Keluar</button>
-            </nav>
-        </details>
+    <header class="mobile-header flex items-center gap-1 border-b border-line bg-sunken px-1.5 pb-2 lg:hidden">
+        <Link href={admin.dashboard().url} class="flex min-h-11 shrink-0 items-center px-2.5 font-display text-2xl font-medium" aria-label="Panel admin, ringkasan"><AppLogo /></Link>
+        <button type="button" popovertarget="admin-menu" class="flex min-h-11 min-w-0 grow flex-col items-center justify-center rounded-md px-2 hover:bg-surface/60">
+            <span class="sr-only">Menu admin:</span>
+            <span class="text-[11px] leading-tight text-ink-3">Admin</span>
+            <span class="flex max-w-full items-center gap-1 text-base leading-tight font-semibold"><span class="truncate">{current?.label ?? title}</span><Icon name="caret" size={16} /></span>
+        </button>
+        <AccountMenu />
     </header>
+    <div id="admin-menu" popover class="sheet">
+        <span class="mx-auto mb-3 block h-1 w-10 rounded-full bg-line-strong sm:hidden" aria-hidden="true"></span>
+        <nav aria-label="Navigasi admin seluler" class="flex flex-col gap-3">
+            {#each groups as group (group.label)}
+                <div class="flex flex-col gap-0.5">
+                    <span class="section-label px-3 pb-1 text-[11px] text-ink-3">{group.label}</span>
+                    {#each group.items as item (item.id)}
+                        <Link href={item.href} aria-current={item.id === active ? 'page' : undefined} class="flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] {item.id === active ? 'bg-primary-soft font-semibold text-primary' : 'font-medium text-ink'}"><Icon name={item.icon} />{item.label}</Link>
+                    {/each}
+                </div>
+            {/each}
+        </nav>
+    </div>
     <aside class="sticky top-0 hidden h-dvh w-62 shrink-0 flex-col gap-8 border-r border-line bg-sunken px-4 pt-7 pb-5 lg:flex overflow-y-auto">
         <div class="flex items-center gap-2.5 px-3">
             <span class="font-display text-[30px] leading-none font-medium tracking-tight"><AppLogo /></span>
@@ -90,8 +99,8 @@
                 </div>
             {/if}
             <Link href={projects.index().url} class="btn btn-ghost justify-start px-3 font-medium text-ink-2"><Icon name="book" /> Proyek saya</Link>
-            <Link href="/account/subscription" class="btn btn-ghost">Paket & Kredit · {user?.unlimited ? 'Unlimited' : `${user?.credits ?? 0} kredit`}</Link>
-                <Link href="/account/password" class="btn btn-ghost justify-start px-3">Ubah password</Link>
+            {#if user}<Link href="/account/subscription" class="btn btn-ghost justify-start px-3 font-medium text-ink-2"><Icon name="grid" /> <span class="grow text-left">Paket & Kredit</span><span class="font-mono text-xs font-normal text-ink-3">{user.unlimited ? 'Unlimited' : `${user.credits} kredit`}</span></Link>{/if}
+            <Link href="/account/password" class="btn btn-ghost justify-start px-3 font-medium text-ink-2"><Icon name="pen" /> Ubah password</Link>
             <button type="button" class="btn btn-ghost justify-start px-3 font-medium text-ink-2" onclick={() => router.post(logout().url)}>
                 <Icon name="logout" /> Keluar
             </button>

@@ -122,12 +122,14 @@
                                 <td class="px-5 py-2.5"><span class="badge {row.role === 'admin' ? 'bg-primary-soft text-primary' : ''}">{row.role === 'admin' ? 'Admin' : 'Pengguna'}</span></td>
                                 <td class="px-5 py-2.5 text-ink-2">{[row.google && 'Google', row.password && 'Email'].filter(Boolean).join(' + ') || '—'}</td>
                                 <td class="px-5 py-2.5 text-right font-mono text-[13px]">{row.projects}</td>
-                                <td class="px-5 py-1.5 text-right">
-                                    <Link href={`/admin/billing?q=${encodeURIComponent(row.email)}`} class="btn btn-ghost">Subscription</Link>
-                                    <button type="button" class="btn btn-ghost" onclick={() => edit(row)} aria-label="Ubah {row.name}">Ubah</button>
-                                    {#if row.id !== page.props.auth.user?.id}
-                                        <button type="button" class="btn btn-ghost text-danger" disabled={deleting !== null} onclick={() => remove(row)} aria-label="Hapus {row.name}">{deleting === row.id ? 'Menghapus…' : 'Hapus'}</button>
-                                    {/if}
+                                <td class="px-5 py-1.5">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <Link href={`/admin/billing?q=${encodeURIComponent(row.email)}`} class="btn btn-ghost">Subscription</Link>
+                                        <button type="button" class="btn btn-ghost btn-icon text-ink-2" onclick={() => edit(row)} aria-label="Ubah {row.name}" title="Ubah"><Icon name="pen" /></button>
+                                        {#if row.id !== page.props.auth.user?.id}
+                                            <button type="button" class="btn btn-ghost btn-icon text-danger" disabled={deleting !== null} onclick={() => remove(row)} aria-label={deleting === row.id ? `Menghapus ${row.name}` : `Hapus ${row.name}`} title="Hapus"><Icon name={deleting === row.id ? 'spinner' : 'trash'} /></button>
+                                        {/if}
+                                    </div>
                                 </td>
                             </tr>
                         {:else}
