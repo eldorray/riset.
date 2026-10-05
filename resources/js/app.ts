@@ -8,6 +8,17 @@ void createInertiaApp({
     progress: {
         color: '#4B5563',
     },
+    defaults: {
+        // Transisi halaman lembut hanya saat pindah halaman; form, reload sebagian, dan filter tetap instan.
+        visitOptions: (_href, options) => ({
+            ...options,
+            // Opsi di sini belum digabung default Inertia: method kosong berarti GET.
+            viewTransition:
+                (options.method ?? 'get') === 'get' &&
+                !options.only?.length &&
+                !options.preserveState,
+        }),
+    },
 });
 
 setupPwa();

@@ -57,13 +57,13 @@
                 <div class="flex flex-col gap-0.5">
                     <span class="section-label px-3 pb-1 text-[11px] text-ink-3">{group.label}</span>
                     {#each group.items as item (item.id)}
-                        <Link href={item.href} aria-current={item.id === active ? 'page' : undefined} class="flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] {item.id === active ? 'bg-primary-soft font-semibold text-primary' : 'font-medium text-ink'}"><Icon name={item.icon} />{item.label}</Link>
+                        <Link href={item.href} aria-current={item.id === active ? 'page' : undefined} class="press-soft flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] {item.id === active ? 'bg-primary-soft font-semibold text-primary' : 'font-medium text-ink'}"><Icon name={item.icon} />{item.label}</Link>
                     {/each}
                 </div>
             {/each}
         </nav>
     </div>
-    <aside class="sticky top-0 hidden h-dvh w-62 shrink-0 flex-col gap-8 border-r border-line bg-sunken px-4 pt-7 pb-5 lg:flex overflow-y-auto">
+    <aside class="app-sidebar sticky top-0 hidden h-dvh w-62 shrink-0 flex-col gap-8 border-r border-line bg-sunken px-4 pt-7 pb-5 lg:flex overflow-y-auto">
         <div class="flex items-center gap-2.5 px-3">
             <span class="font-display text-[30px] leading-none font-medium tracking-tight"><AppLogo /></span>
             <span class="rounded border border-line-strong px-1.5 py-0.5 font-mono text-[11px] tracking-wider text-ink-2">ADMIN</span>
@@ -77,7 +77,7 @@
                         <Link
                             href={item.href}
                             aria-current={item.id === active ? 'page' : undefined}
-                            class="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm {item.id === active
+                            class="press-soft flex min-h-11 items-center gap-3 rounded-md px-3 text-sm {item.id === active
                                 ? 'bg-surface font-semibold shadow-[0_0_0_1px_var(--color-line)]'
                                 : 'font-medium text-ink-2 hover:bg-surface/60'}"
                         >

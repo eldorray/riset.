@@ -39,11 +39,15 @@
 
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @layer base {
     html {
         --mobile-header-h: calc(3.75rem + 1px + env(safe-area-inset-top));
+        /* Sorotan abu-abu bawaan saat tap diganti umpan balik tekan sendiri. */
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
         background: var(--color-paper);
         color: var(--color-ink);
     }
@@ -74,6 +78,7 @@
         white-space: nowrap;
         text-decoration: none;
         transition:
+            transform 160ms var(--ease-out),
             background-color 120ms ease,
             border-color 120ms ease;
     }
@@ -332,9 +337,36 @@
         -webkit-user-select: none;
         user-select: none;
     }
+    /* Tekan: kontrol mengecil sedikit saat jari/kursor menekan, lalu kembali halus saat dilepas. */
+    button,
+    summary,
+    .press,
+    .press-soft,
+    .card-press {
+        transition: transform 160ms var(--ease-out);
+    }
+    /* Kartu yang seluruh permukaannya tautan (stretched link): kartunya ikut tertekan. */
+    .card-press:has(a:active) {
+        transform: scale(0.99);
+    }
     button:active:not(:disabled),
-    summary:active {
-        opacity: 0.8;
+    .btn:active:not(:disabled, [aria-disabled='true']),
+    .press:active {
+        transform: scale(0.97);
+    }
+    summary:active,
+    .press-soft:active {
+        transform: scale(0.985);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        button:active:not(:disabled),
+        .btn:active:not(:disabled, [aria-disabled='true']),
+        .press:active,
+        summary:active,
+        .press-soft:active {
+            transform: none;
+            opacity: 0.85;
+        }
     }
     @media (pointer: coarse) {
         input,
@@ -377,7 +409,64 @@
     .sheet::backdrop {
         background: rgb(27 31 42 / 0.45);
     }
+
+    /* Sheet meluncur dari bawah (ponsel); dialog/dropdown membesar halus (layar lebar). Keluar lebih cepat dari masuk. */
+    .sheet {
+        transform: translateY(100%);
+        transition:
+            transform 240ms var(--ease-out),
+            opacity 240ms var(--ease-out),
+            overlay 240ms allow-discrete,
+            display 240ms allow-discrete;
+    }
+    .sheet:popover-open {
+        transform: none;
+        transition-duration: 420ms;
+        transition-timing-function: var(--ease-drawer);
+    }
+    @starting-style {
+        .sheet:popover-open {
+            transform: translateY(100%);
+        }
+    }
+    .sheet::backdrop {
+        opacity: 0;
+        transition:
+            opacity 240ms var(--ease-out),
+            overlay 240ms allow-discrete,
+            display 240ms allow-discrete;
+    }
+    .sheet:popover-open::backdrop {
+        opacity: 1;
+    }
+    @starting-style {
+        .sheet:popover-open::backdrop {
+            opacity: 0;
+        }
+    }
     @media (width >= 40rem) {
+        .sheet,
+        .sheet:popover-open {
+            transition-duration: 200ms;
+            transition-timing-function: var(--ease-out);
+        }
+        .sheet {
+            opacity: 0;
+            transform: scale(0.96);
+        }
+        .sheet:popover-open {
+            opacity: 1;
+            transform: none;
+        }
+        @starting-style {
+            .sheet:popover-open {
+                opacity: 0;
+                transform: scale(0.96);
+            }
+        }
+        .sheet-dropdown {
+            transform-origin: top right;
+        }
         .sheet {
             inset: 0;
             margin: auto;
@@ -425,5 +514,50 @@
         .field {
             min-width: 0;
         }
+    }
+}
+
+/* Gerakan dikurangi: sheet dan dialog cukup memudar, tanpa meluncur atau membesar. Di akhir agar menimpa aturan layar lebar. */
+@layer components {
+    @media (prefers-reduced-motion: reduce) {
+        .sheet,
+        .sheet:popover-open {
+            transform: none;
+        }
+        .sheet {
+            opacity: 0;
+        }
+        .sheet:popover-open {
+            opacity: 1;
+        }
+        @starting-style {
+            .sheet:popover-open {
+                transform: none;
+                opacity: 0;
+            }
+        }
+    }
+}
+
+/* Transisi halaman (View Transitions): konten memudar cepat; sidebar dan header ponsel tetap di tempat. */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: var(--ease-out);
+}
+.app-sidebar {
+    view-transition-name: app-sidebar;
+}
+.mobile-header {
+    view-transition-name: mobile-header;
+}
+.app-topbar {
+    view-transition-name: app-topbar;
+}
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
     }
 }

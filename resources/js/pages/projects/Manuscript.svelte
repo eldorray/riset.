@@ -407,7 +407,7 @@
             <ul class="flex flex-col">
                 {#each checks as check (check.label)}
                     <li class="border-b border-sunken last:border-b-0">
-                        <Link href={check.href} class="flex min-h-12 items-center gap-3 py-2">
+                        <Link href={check.href} class="press-soft flex min-h-12 items-center gap-3 py-2">
                             <span class="flex size-6 shrink-0 items-center justify-center rounded-full {check.ok ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn'}">
                                 <Icon name={check.ok ? 'check' : 'warn'} size={14} />
                             </span>

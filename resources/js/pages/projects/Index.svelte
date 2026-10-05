@@ -45,7 +45,7 @@
             {#if list.length}
                 <ul class="flex flex-col gap-3.5">
                     {#each list as project (project.id)}
-                        <li class="card relative flex flex-col gap-3 px-6 pt-5 pb-2 has-[a:hover]:border-line-strong">
+                        <li class="card card-press relative flex flex-col gap-3 px-6 pt-5 pb-2 has-[a:hover]:border-line-strong">
                             <div class="flex items-center justify-between gap-4">
                                 <span class="badge">{project.document_type.label}</span>
                                 <span class="text-[13px] text-ink-3">Diperbarui {relativeTime(project.updated_at)}</span>

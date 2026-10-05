@@ -68,17 +68,17 @@
         </div>
         <nav aria-label="Navigasi proyek seluler" class="flex flex-col gap-0.5 pt-2">
             {#each items as item (item.id)}
-                <Link href={item.href} aria-current={item.id === active ? 'page' : undefined} class="flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] {item.id === active ? 'bg-primary-soft font-semibold text-primary' : 'font-medium text-ink'}">
+                <Link href={item.href} aria-current={item.id === active ? 'page' : undefined} class="press-soft flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] {item.id === active ? 'bg-primary-soft font-semibold text-primary' : 'font-medium text-ink'}">
                     <Icon name={item.icon} />
                     <span class="grow">{item.label}</span>
                     <span class="font-mono text-xs font-normal text-ink-3">{item.meta}</span>
                 </Link>
             {/each}
-            <Link href={projects.index().url} class="mt-1 flex min-h-12 items-center gap-3 rounded-md border-t border-line px-3 text-[15px] font-medium text-ink-2"><Icon name="back" /> Semua proyek</Link>
+            <Link href={projects.index().url} class="press-soft mt-1 flex min-h-12 items-center gap-3 rounded-md border-t border-line px-3 text-[15px] font-medium text-ink-2"><Icon name="back" /> Semua proyek</Link>
         </nav>
     </div>
     <aside
-        class="sticky top-0 hidden h-dvh w-62 shrink-0 flex-col gap-6 border-r border-line bg-sunken px-4 pt-6 pb-5 lg:flex overflow-y-auto"
+        class="app-sidebar sticky top-0 hidden h-dvh w-62 shrink-0 flex-col gap-6 border-r border-line bg-sunken px-4 pt-6 pb-5 lg:flex overflow-y-auto"
     >
         <div class="flex flex-col gap-3">
             <Link
@@ -108,7 +108,7 @@
                 <Link
                     href={item.href}
                     aria-current={item.id === active ? 'page' : undefined}
-                    class="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm {item.id === active
+                    class="press-soft flex min-h-11 items-center gap-3 rounded-md px-3 text-sm {item.id === active
                         ? 'bg-surface font-semibold text-ink shadow-[0_0_0_1px_var(--color-line)]'
                         : 'font-medium text-ink-2 hover:bg-surface/60'}"
                 >
