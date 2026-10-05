@@ -23,7 +23,13 @@ export type Section = { id: string; title: string };
 export type Chapter = { id: string; title: string; sections: Section[] };
 
 export type UnitKind = 'literatur' | 'metode' | 'empiris';
-export type Unit = { id: string; number: string; title: string; level: 1 | 2; kind: UnitKind };
+export type Unit = {
+    id: string;
+    number: string;
+    title: string;
+    level: 1 | 2;
+    kind: UnitKind;
+};
 
 export type Segment = { text: string; italic: boolean };
 
@@ -41,4 +47,10 @@ export type ReferenceMetadata = {
     keywords?: string[];
 };
 
-export type ExportFormat = { name: string; table_of_contents: boolean; title_page: boolean; citation_style: string; font: string };
+export type ExportFormat = {
+    name: string;
+    table_of_contents: boolean;
+    title_page: boolean;
+    citation_style: string;
+    font: string;
+};

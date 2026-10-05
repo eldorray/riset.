@@ -80,6 +80,12 @@ export default defineConfig({
         htmlWhitespaceSensitivity: 'css',
         ignorePatterns: [
             '.github/**',
+            'vendor/**',
+            'public/**',
+            'bootstrap/ssr/**',
+            'resources/js/actions/**',
+            'resources/js/routes/**',
+            'resources/js/wayfinder/**',
             'composer.json',
             'resources/js/components/ui/*',
             'resources/views/mail/*',

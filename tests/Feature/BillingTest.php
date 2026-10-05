@@ -46,6 +46,8 @@ it('queues early renewal without credit refill and handles month ends', function
 });
 
 it('edits expiry without new credits and supports permanent and temporary unlimited', function () {
+    // Bekukan waktu sebelum tanggal uji di bawah agar travelTo selalu maju, apa pun tanggal hari ini.
+    $this->travelTo(now()->setDate(2026, 10, 1)->setTime(12, 0));
     activateBilling($this->billing, $this->user, $this->admin);
     $this->actingAs($this->admin)->put("/admin/billing/users/{$this->user->id}", ['action' => 'expiry', 'until' => '2027-01-01', 'note' => 'Perpanjangan khusus'])->assertSessionHasNoErrors();
     expect($this->billing->balance($this->user))->toBe(600)->and(DB::table('credit_grants')->count())->toBe(1);

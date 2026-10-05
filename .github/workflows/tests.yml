@@ -31,8 +31,16 @@ jobs:
         with:
           node-version: '22'
 
+      # CI tidak punya MySQL; .env.example memakai MySQL untuk produksi, jadi setup CI memakai SQLite.
+      # Tes tetap memakai SQLite memori dari phpunit.xml.
+      - name: Create SQLite database
+        run: touch database/database.sqlite
+
       - name: Setup Application
         run: composer setup
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
 
       - name: Run CI Checks
         run: composer ci:check

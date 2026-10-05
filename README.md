@@ -25,7 +25,6 @@ Referensi duplikat dalam proyek ditolak berdasarkan judul, tautan, atau DOI. Sem
 
 Filter indeks membatasi penyedia ke Scopus atau DOAJ; kegagalan tidak diganti dengan hasil sumber umum. “Semua sumber” memakai empat penyedia umum dan tidak memanggil Scopus. Scopus menggunakan API resmi Elsevier (STANDARD) dengan filter tahun, jenis sumber, dan akses terbuka; metadata penulis pertama saja tidak dianggap sebagai daftar penulis lengkap. Negara afiliasi penulis tidak dipakai sebagai negara penerbit jurnal, sehingga cakupan nasional/internasional tidak tersedia untuk Scopus. Hasil Scopus menunjukkan dokumen ditemukan dalam indeks, bukan status jurnal aktif atau kuartil. SINTA S1–S6 belum menjadi filter otomatis karena belum ada dataset/API resmi terverifikasi yang terhubung; tersedia tautan ke direktori resmi.
 
-
 Proyek dapat diarsipkan dan dipulihkan dari daftar proyek; isi tetap tersimpan. Pengguna dapat mengubah password melalui tautan **Ubah password**, atau meminta tautan **Lupa password?** dari halaman masuk. Reset memakai token sekali pakai yang berlaku 60 menit.
 
 Generasi otomatis menolak penyimpanan jika bagian berubah selama AI berjalan. Simpan perubahan bagian awal sebelum memulai generasi. Keterbatasan AI dan perbandingan jumlah kata aktual dengan target ditampilkan setelah proses; target kata bukan jaminan hasil AI.
@@ -73,8 +72,8 @@ Lokal memakai SQLite (`DB_CONNECTION=sqlite`); produksi di shared hosting pakai 
 | `AI_TIMEOUT`                               | Detik per permintaan (default 120). Sesuaikan dengan batas waktu proses hosting.                             |
 | `AI_JSON_MODE`                             | `true` mengirim `response_format: json_object`; set `false` bila API menolaknya.                             |
 | `CROSSREF_MAILTO`, `OPENALEX_MAILTO`       | Email kontak untuk "polite pool" (opsional, disarankan).                                                     |
-| `SCOPUS_API_KEY`                         | Kunci Elsevier untuk sumber/filter Scopus; hanya dikirim melalui header dari server.                        |
-| `SCOPUS_INSTTOKEN`                       | Opsional sesuai hak akses institusi Elsevier.                                                               |
+| `SCOPUS_API_KEY`                           | Kunci Elsevier untuk sumber/filter Scopus; hanya dikirim melalui header dari server.                         |
+| `SCOPUS_INSTTOKEN`                         | Opsional sesuai hak akses institusi Elsevier.                                                                |
 | `SEMANTIC_SCHOLAR_API_KEY`                 | Opsional; tanpa kunci Semantic Scholar sering menolak (batas bersama).                                       |
 
 ### Email reset password
@@ -143,7 +142,6 @@ Pada **Tambah referensi manual**, unggah PDF atau Word `.docx` lalu klik **Baca 
 
 Ekstraksi PDF memerlukan `pdftotext` (Poppler) pada PATH server. Batas unduhan 15 MB dan teks 200.000 karakter; artikel melebihi batas ditolak tanpa pemotongan diam-diam. PDF scan memerlukan OCR dan belum didukung. Situs yang memerlukan login, menolak unduhan, atau menyajikan isi hanya melalui JavaScript dapat gagal dibaca. Catatan manual tetap dapat digunakan. Ringkasan AI perlu diperiksa terhadap artikel asli.
 
-
 ### Kontak pembayaran dan informasi biaya AI
 
 Di **Admin → Subscription & Kredit → Kontak & pembayaran**, isi WhatsApp (kode negara tanpa `+`), bank, rekening, atas nama, dan instruksi tambahan. Informasi ini ditampilkan di **Paket & Kredit**. Tombol konfirmasi WhatsApp memasukkan nomor permintaan, paket, dan jumlah pembayaran. Tanpa konfigurasi, pengguna diberi pesan untuk menunggu instruksi sebelum membayar.
@@ -151,7 +149,6 @@ Di **Admin → Subscription & Kredit → Kontak & pembayaran**, isi WhatsApp (ko
 Tindakan AI menampilkan perkiraan kredit teks berdasarkan panjang bahan dan target tulisan. Estimasi bukan harga tetap dan belum mencakup reasoning atau pembacaan sumber tambahan; penagihan tetap memakai token aktual dari penyedia. Estimasi pembacaan artikel memakai contoh 30.000 karakter karena panjang teks belum diketahui sebelum ekstraksi.
 
 Referensi dapat ditambahkan melalui **Cari referensi**, **Unggah artikel**, atau **Isi manual**. Error validasi tampil lengkap dan mengarahkan fokus ke isian terkait. Isian yang belum tersimpan dilindungi peringatan saat navigasi atau menutup halaman. Dialog ekspor menampilkan opsi Word yang benar-benar dipakai, termasuk daftar isi dan halaman judul.
-
 
 ### Landing page publik
 

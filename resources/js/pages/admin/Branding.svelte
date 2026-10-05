@@ -7,7 +7,7 @@
 
     const form = useForm<{ logo: File | null }>({ logo: null });
     let preview = $state<string | null>(null);
-    let input: HTMLInputElement;
+    let input: HTMLInputElement | undefined = $state();
     let removing = $state(false);
     function clear() {
         if (preview) URL.revokeObjectURL(preview);
