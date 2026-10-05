@@ -7,6 +7,10 @@
 
         <link rel="icon" id="app-favicon" href="{{ $page['props']['logo_url'] ?? '/favicon.svg?v=riset' }}">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/manifest.webmanifest">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-title" content="Riset">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
         @fonts
 

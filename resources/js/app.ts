@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/svelte';
+import { setupPwa } from '@/lib/pwa.svelte';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -8,3 +9,5 @@ void createInertiaApp({
         color: '#4B5563',
     },
 });
+
+setupPwa();

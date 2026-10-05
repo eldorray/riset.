@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Link, page, router } from '@inertiajs/svelte';
     import Icon from '@/components/Icon.svelte';
+    import InstallApp from '@/components/InstallApp.svelte';
     import { logout } from '@/routes';
     import admin from '@/routes/admin';
     import projects from '@/routes/projects';
@@ -28,6 +29,7 @@
             {#if user.is_admin}<Link href={admin.dashboard().url} class="btn btn-ghost justify-start px-3"><Icon name="shield" /> Panel admin</Link>{/if}
             <Link href="/account/subscription" class="btn btn-ghost justify-start px-3"><Icon name="grid" /> <span class="grow text-left">Paket & Kredit</span><span class="font-mono text-xs font-normal text-ink-3">{user.unlimited ? 'Unlimited' : `${user.credits} kredit`}</span></Link>
             <Link href="/account/password" class="btn btn-ghost justify-start px-3"><Icon name="pen" /> Ubah password</Link>
+            <InstallApp />
             <button type="button" class="btn btn-ghost justify-start px-3" onclick={() => router.post(logout().url)}><Icon name="logout" /> Keluar</button>
         </nav>
     </div>

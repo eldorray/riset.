@@ -7,6 +7,7 @@
     import Icon from '@/components/Icon.svelte';
     import type { IconName } from '@/components/Icon.svelte';
     import AccountMenu from '@/components/AccountMenu.svelte';
+    import InstallApp from '@/components/InstallApp.svelte';
     import { logout } from '@/routes';
     import admin from '@/routes/admin';
     import projects from '@/routes/projects';
@@ -101,6 +102,7 @@
             <Link href={projects.index().url} class="btn btn-ghost justify-start px-3 font-medium text-ink-2"><Icon name="book" /> Proyek saya</Link>
             {#if user}<Link href="/account/subscription" class="btn btn-ghost justify-start px-3 font-medium text-ink-2"><Icon name="grid" /> <span class="grow text-left">Paket & Kredit</span><span class="font-mono text-xs font-normal text-ink-3">{user.unlimited ? 'Unlimited' : `${user.credits} kredit`}</span></Link>{/if}
             <Link href="/account/password" class="btn btn-ghost justify-start px-3 font-medium text-ink-2"><Icon name="pen" /> Ubah password</Link>
+            <InstallApp />
             <button type="button" class="btn btn-ghost justify-start px-3 font-medium text-ink-2" onclick={() => router.post(logout().url)}>
                 <Icon name="logout" /> Keluar
             </button>

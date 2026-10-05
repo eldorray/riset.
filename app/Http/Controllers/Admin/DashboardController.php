@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\Reference;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,6 +62,34 @@ final class DashboardController extends Controller
                 'custom' => Setting::read("structures.{$type->value}") !== null,
             ], DocumentType::cases()),
             'templates' => DocxTemplate::query()->count(),
+            'devices' => $this->devices(),
         ]);
+    }
+
+    /**
+     * Porsi perangkat 30 hari terakhir dari analitik internal (lihat RecordPageVisit).
+     *
+     * @return array{rows: list<array{device: string, label: string, views: int, users: int}>, views: int, users: int, pwa: int, since: string}
+     */
+    private function devices(): array
+    {
+        $since = now()->subDays(29)->toDateString();
+        $stats = DB::table('page_visits')->where('date', '>=', $since)
+            ->selectRaw('device, sum(views) as views, count(distinct case when user_id > 0 then user_id end) as users')
+            ->groupBy('device')->get()->keyBy('device');
+        $labels = ['mobile' => 'Ponsel', 'tablet' => 'Tablet', 'desktop' => 'Desktop / laptop'];
+
+        return [
+            'rows' => array_map(fn (string $device, string $label): array => [
+                'device' => $device,
+                'label' => $label,
+                'views' => (int) ($stats[$device]->views ?? 0),
+                'users' => (int) ($stats[$device]->users ?? 0),
+            ], array_keys($labels), $labels),
+            'views' => (int) $stats->sum('views'),
+            'users' => (int) DB::table('page_visits')->where('date', '>=', $since)->where('user_id', '>', 0)->distinct()->count('user_id'),
+            'pwa' => (int) DB::table('page_visits')->where('date', '>=', $since)->where('pwa', true)->sum('views'),
+            'since' => $since,
+        ];
     }
 }

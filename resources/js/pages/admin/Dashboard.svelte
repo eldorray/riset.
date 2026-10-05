@@ -10,13 +10,17 @@
         styles,
         types,
         templates,
+        devices,
     }: {
         stats: { users: number; admins: number; projects: number; references: number; searched: number };
         services: { name: string; ok: boolean; detail: string }[];
         styles: string[];
         types: { label: string; chapters: number; custom: boolean }[];
         templates: number;
+        devices: { rows: { device: string; label: string; views: number; users: number }[]; views: number; users: number; pwa: number; since: string };
     } = $props();
+
+    const percent = (value: number, total: number) => (total ? Math.round((value / total) * 100) : 0);
 
     const tiles = $derived([
         { label: 'Pengguna terdaftar', value: stats.users, note: `${stats.admins} admin` },
@@ -41,6 +45,28 @@
             </div>
         {/each}
     </div>
+
+    <section class="card flex flex-col gap-4 px-6 py-5" aria-labelledby="devices-title">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="devices-title" class="font-display text-2xl font-medium">Perangkat pengguna · 30 hari</h2>
+            <span class="text-[13px] text-ink-3">{devices.views.toLocaleString('id')} kunjungan halaman · {devices.users} pengguna masuk</span>
+        </div>
+        {#if devices.views}
+            <ul class="flex flex-col gap-3">
+                {#each devices.rows as row (row.device)}
+                    <li class="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_auto] items-center gap-3 text-sm">
+                        <span class="font-medium">{row.label}</span>
+                        <span class="h-2 overflow-hidden rounded-full bg-sunken" aria-hidden="true"><span class="block h-full rounded-full bg-primary" style="width: {percent(row.views, devices.views)}%"></span></span>
+                        <span class="text-right font-mono text-[13px] tabular-nums">{percent(row.views, devices.views)}% <span class="text-ink-3">· {row.users} pengguna</span></span>
+                    </li>
+                {/each}
+            </ul>
+            <p class="text-[13px] text-ink-2">Dibuka dari aplikasi terpasang (PWA): <span class="font-semibold">{devices.pwa.toLocaleString('id')} kali</span>. Persentase dihitung dari kunjungan halaman; satu pengguna bisa memakai lebih dari satu perangkat.</p>
+        {:else}
+            <p class="text-sm text-ink-2">Belum ada data. Kunjungan mulai dihitung sejak fitur ini aktif.</p>
+        {/if}
+        <p class="border-t border-sunken pt-3 text-xs text-ink-3">Analitik internal tanpa cookie dan tanpa layanan pihak ketiga. Kunjungan admin, bot, dan polling latar tidak dihitung.</p>
+    </section>
 
     <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section class="card flex flex-col" aria-labelledby="services">
