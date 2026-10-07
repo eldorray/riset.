@@ -63,7 +63,12 @@ it('rejects empty Word content without charging an AI request', function () {
     }
 });
 
-it('reads a text PDF and leaves unavailable source metadata blank', function () {
+it('reads a text PDF and leaves unavailable source metadata blank', function (bool $poppler) {
+    $path = getenv('PATH');
+    if (! $poppler) {
+        // Shared hosting tanpa pdftotext: ekstraksi jatuh ke parser PHP.
+        putenv('PATH=/nonexistent');
+    }
     $project = Project::factory()->for(User::factory()->unlimited())->create();
     $stream = 'BT /F1 10 Tf 50 750 Td ';
     for ($i = 0; $i < 20; $i++) {
@@ -91,8 +96,9 @@ it('reads a text PDF and leaves unavailable source metadata blank', function () 
     $pdf .= "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n{$start}\n%%EOF";
     Http::fake(['ai.test/*' => Http::sequence()
         ->push(['choices' => [['message' => ['content' => json_encode(['title' => 'Speaking practice', 'source_url' => 'https://invented.test/article', 'metadata' => ['doi' => '10.1234/invented'], 'notes' => 'Siswa menyukai latihan interaktif.'])]]]])]);
-    $this->actingAs($project->user)->postJson("/projects/{$project->id}/references/import", ['article' => UploadedFile::fake()->createWithContent('article.pdf', $pdf)])
-        ->assertOk()->assertJsonPath('source_url', '')->assertJsonPath('metadata.doi', '')->assertJsonPath('metadata.authors', []);
+    $response = $this->actingAs($project->user)->postJson("/projects/{$project->id}/references/import", ['article' => UploadedFile::fake()->createWithContent('article.pdf', $pdf)]);
+    putenv("PATH={$path}");
+    $response->assertOk()->assertJsonPath('source_url', '')->assertJsonPath('metadata.doi', '')->assertJsonPath('metadata.authors', []);
     Http::assertSent(fn ($request) => str_contains($request['messages'][1]['content'], 'Students prefer interactive tools.'));
     expect($project->references()->count())->toBe(0);
-});
+})->with(['pdftotext' => [true], 'parser PHP' => [false]]);

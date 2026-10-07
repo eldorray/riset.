@@ -14,6 +14,8 @@ use DOMXPath;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Support\Facades\Http;
+use Smalot\PdfParser\Parser as PdfParser;
+use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 use Throwable;
 
@@ -133,22 +135,36 @@ class ArticleReader
 
     public function pdfText(string $path): string
     {
-        $process = new Process(['pdftotext', '-layout', $path, '-']);
-        $process->setTimeout(30);
-        try {
-            $process->run();
-        } catch (Throwable $e) {
-            throw new AiException('Ekstraksi PDF gagal. Pastikan pdftotext tersedia di server.', previous: $e);
-        }
-        if (! $process->isSuccessful()) {
-            throw new AiException('PDF tidak dapat diekstrak. Pastikan PDF tidak rusak atau dilindungi kata sandi.');
-        }
-        $text = trim($process->getOutput());
+        // ponytail: pdftotext (poppler) lebih rapi untuk tata letak kolom; shared hosting tanpa poppler atau proc_open memakai parser PHP.
+        $text = function_exists('proc_open') && (new ExecutableFinder)->find('pdftotext') !== null
+            ? $this->popplerText($path)
+            : $this->parserText($path);
         if (mb_strlen($text) < 500) {
             throw new AiException('PDF tidak memiliki teks yang cukup; PDF hasil scan memerlukan OCR.');
         }
 
         return $text;
+    }
+
+    private function popplerText(string $path): string
+    {
+        $process = new Process(['pdftotext', '-layout', $path, '-']);
+        $process->setTimeout(30);
+        $process->run();
+        if (! $process->isSuccessful()) {
+            throw new AiException('PDF tidak dapat diekstrak. Pastikan PDF tidak rusak atau dilindungi kata sandi.');
+        }
+
+        return trim($process->getOutput());
+    }
+
+    private function parserText(string $path): string
+    {
+        try {
+            return trim((new PdfParser)->parseFile($path)->getText());
+        } catch (Throwable $e) {
+            throw new AiException('PDF tidak dapat diekstrak. Pastikan PDF tidak rusak atau dilindungi kata sandi.', previous: $e);
+        }
     }
 
     /** @return array{string, string} */
