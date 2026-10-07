@@ -83,7 +83,7 @@
         },
         {
             title: 'Rancangan penelitian',
-            detail: readiness.design_ready ? (readiness.needs_data ? 'Rancangan terisi · data penelitian belum diisi' : project.literature_study ? 'Studi literatur · rancangan terisi' : 'Rancangan dan data terisi') : 'Isi masalah, pendekatan, dan teknik analisis',
+            detail: readiness.design_ready ? (readiness.needs_data ? 'Rancangan terisi · data penelitian belum diisi' : project.literature_study ? 'Studi literatur · rancangan terisi' : 'Rancangan dan data terisi') : 'Isi masalah, pendekatan, dan teknik analisis (PTK: juga indikator keberhasilan)',
             status: readiness.design_ready ? (readiness.needs_data ? 'warn' : 'ok') : 'empty',
             badge: readiness.design_ready ? (readiness.needs_data ? 'Tanpa data' : 'Terisi') : 'Belum',
             href: `/projects/${project.id}/rancangan`,

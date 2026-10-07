@@ -166,3 +166,16 @@ it('menolak saran AI untuk data penelitian dan untuk pengguna lain', function ()
     $this->actingAs(User::factory()->create())->postJson("{$this->url}/rancangan/saran", [...$payload, 'fields' => ['tujuan']])->assertForbidden();
     Http::assertNothingSent();
 });
+
+it('mewajibkan indikator keberhasilan untuk PTK dan menyertakan alur siklus di prompt', function () {
+    $ptk = [...$this->design, 'pendekatan' => 'ptk', 'analisis' => 'Deskriptif komparatif antarsiklus'];
+    $this->actingAs($this->project->user)->put("{$this->url}/rancangan", ['title' => 'Judul', 'design' => $ptk, 'research_data' => ''])->assertSessionHasNoErrors();
+    expect($this->project->fresh()->designReady())->toBeFalse();
+
+    $this->project->update(['research_design' => [...$ptk, 'indikator' => 'Minimal 80% siswa mencapai KKM']]);
+    aiJson(['text' => 'Penelitian dilaksanakan dalam [jumlah] siklus.', 'evidence' => [], 'limitations' => '']);
+    $this->postJson("{$this->url}/draft/generate", ['unit' => 'm1', 'references' => []])->assertOk();
+
+    Http::assertSent(fn ($request) => str_contains($request['messages'][1]['content'], 'pra-siklus')
+        && str_contains($request['messages'][1]['content'], 'Minimal 80% siswa mencapai KKM'));
+});

@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 final class SuggestResearchDesign
 {
     /** Field yang boleh diusulkan AI; "ide" adalah catatan pengguna sendiri. */
-    public const FIELDS = ['masalah', 'tujuan', 'hipotesis', 'pendekatan', 'desain', 'subjek', 'pengumpulan', 'analisis'];
+    public const FIELDS = ['masalah', 'tujuan', 'hipotesis', 'pendekatan', 'desain', 'subjek', 'pengumpulan', 'analisis', 'indikator'];
 
     public function __construct(private readonly AiClient $ai) {}
 
@@ -83,12 +83,13 @@ final class SuggestResearchDesign
         return match ($key) {
             'masalah' => 'rumusan masalah sebagai 1–3 pertanyaan penelitian',
             'tujuan' => 'tujuan penelitian yang sejajar dengan rumusan masalah',
-            'hipotesis' => 'hipotesis (H1) bila pendekatan kuantitatif; string kosong bila tidak relevan',
+            'hipotesis' => 'hipotesis (H1) bila kuantitatif, atau hipotesis tindakan ("Jika … maka …") bila PTK; string kosong bila tidak relevan',
             'pendekatan' => 'tepat salah satu kode: '.implode(', ', array_keys(Project::APPROACHES)),
-            'desain' => 'jenis atau desain penelitian',
+            'desain' => 'jenis atau desain penelitian; untuk PTK sebutkan model siklus dan rencana jumlah siklus',
             'subjek' => 'subjek, populasi, sampel, atau objek beserta cara pemilihannya',
             'pengumpulan' => 'teknik pengumpulan data dan instrumennya',
             'analisis' => 'teknik analisis data yang sesuai pendekatan dan rumusan masalah',
+            'indikator' => 'indikator keberhasilan tindakan yang terukur untuk PTK, mis. ≥ [persentase] siswa mencapai KKM; string kosong bila bukan PTK',
             default => 'isi yang sesuai',
         };
     }

@@ -7,7 +7,7 @@
     import ProjectLayout from '@/layouts/ProjectLayout.svelte';
     import type { ProjectSummary } from '@/types';
 
-    type Field = 'masalah' | 'tujuan' | 'hipotesis' | 'pendekatan' | 'desain' | 'subjek' | 'pengumpulan' | 'analisis' | 'ide';
+    type Field = 'masalah' | 'tujuan' | 'hipotesis' | 'pendekatan' | 'desain' | 'subjek' | 'pengumpulan' | 'analisis' | 'indikator' | 'ide';
     type SuggestField = Exclude<Field, 'ide'>;
 
     let {
@@ -28,24 +28,26 @@
         empiricalUnits: string[];
     } = $props();
 
-    const empty: Record<Field, string> = { masalah: '', tujuan: '', hipotesis: '', pendekatan: '', desain: '', subjek: '', pengumpulan: '', analisis: '', ide: '' };
+    const empty: Record<Field, string> = { masalah: '', tujuan: '', hipotesis: '', pendekatan: '', desain: '', subjek: '', pengumpulan: '', analisis: '', indikator: '', ide: '' };
     const form = useForm(untrack(() => ({ title: project.title, design: { ...empty, ...design }, research_data: researchData })));
-    const required: Field[] = ['masalah', 'pendekatan', 'analisis'];
-    const textFields: { key: Field; rows: number; hint: string }[] = [
-        { key: 'masalah', rows: 3, hint: 'Tulis sebagai pertanyaan. Dipakai di Bab I dan menjadi acuan kesimpulan.' },
+    const literature = $derived(form.design.pendekatan === 'studi_literatur');
+    const ptk = $derived(form.design.pendekatan === 'ptk');
+    const required = $derived<Field[]>(ptk ? ['masalah', 'pendekatan', 'analisis', 'indikator'] : ['masalah', 'pendekatan', 'analisis']);
+    const textFields = $derived<{ key: SuggestField; rows: number; hint: string }[]>([
+        { key: 'masalah', rows: 3, hint: ptk ? 'Mis. Bagaimana penerapan model … dapat meningkatkan hasil belajar … siswa kelas …?' : 'Tulis sebagai pertanyaan. Dipakai di Bab I dan menjadi acuan kesimpulan.' },
         { key: 'tujuan', rows: 3, hint: 'Sejajar dengan rumusan masalah.' },
-        { key: 'hipotesis', rows: 2, hint: 'Opsional; biasanya untuk penelitian kuantitatif.' },
-        { key: 'desain', rows: 2, hint: 'Mis. survei korelasional, eksperimen semu, studi kasus, systematic review.' },
-        { key: 'subjek', rows: 2, hint: 'Siapa atau apa yang diteliti, berapa, dan bagaimana dipilih.' },
-        { key: 'pengumpulan', rows: 2, hint: 'Mis. kuesioner skala Likert, wawancara semi-terstruktur, dokumentasi.' },
-        { key: 'analisis', rows: 2, hint: 'Mis. statistik deskriptif dan regresi, analisis tematik, analisis isi.' },
-    ];
+        { key: 'hipotesis', rows: 2, hint: ptk ? 'Hipotesis tindakan, mis. Jika guru menerapkan model …, maka hasil belajar siswa meningkat.' : 'Opsional; biasanya untuk penelitian kuantitatif.' },
+        { key: 'desain', rows: 2, hint: ptk ? 'Model siklus dan rencana jumlah siklus, mis. Kemmis & McTaggart, 2 siklus.' : 'Mis. survei korelasional, eksperimen semu, studi kasus, systematic review.' },
+        { key: 'subjek', rows: 2, hint: ptk ? 'Kelas, jumlah siswa, sekolah, dan waktu pelaksanaan.' : 'Siapa atau apa yang diteliti, berapa, dan bagaimana dipilih.' },
+        { key: 'pengumpulan', rows: 2, hint: ptk ? 'Mis. tes tiap akhir siklus, lembar observasi guru dan siswa, dokumentasi.' : 'Mis. kuesioner skala Likert, wawancara semi-terstruktur, dokumentasi.' },
+        { key: 'analisis', rows: 2, hint: ptk ? 'Mis. deskriptif kuantitatif (rata-rata, persentase ketuntasan) dibandingkan antarsiklus, dan deskriptif kualitatif hasil observasi.' : 'Mis. statistik deskriptif dan regresi, analisis tematik, analisis isi.' },
+        ...(ptk ? [{ key: 'indikator' as const, rows: 2, hint: 'Target yang menandai tindakan berhasil, mis. ≥ 80% siswa mencapai KKM. Dipakai untuk menilai tiap siklus.' }] : []),
+    ]);
     const err = (key: string) => (form.errors as Record<string, string | undefined>)[key];
     const missing = $derived(required.filter((key) => !form.design[key].trim()).map((key) => fields[key].toLowerCase()));
-    const literature = $derived(form.design.pendekatan === 'studi_literatur');
 
     // Saran AI hanya untuk field rancangan yang kosong; Data & temuan tidak pernah disarankan.
-    const suggestable: SuggestField[] = ['masalah', 'tujuan', 'hipotesis', 'pendekatan', 'desain', 'subjek', 'pengumpulan', 'analisis'];
+    const suggestable = $derived<SuggestField[]>(['pendekatan', ...textFields.map((field) => field.key)]);
     const suggester = useHttp<{ title: string; fields: SuggestField[]; design: Record<Field, string> }, { suggestions: Partial<Record<SuggestField, string>>; notes: string }>({ title: '', fields: [], design: { ...empty } });
     let suggestions = $state<Partial<Record<SuggestField, string>>>({});
     let suggestNotes = $state('');
@@ -181,7 +183,7 @@
                         <textarea id="design-{field.key}" rows={field.rows} class="input" bind:value={form.design[field.key]} aria-describedby="design-{field.key}-help" aria-invalid={err(`design.${field.key}`) ? 'true' : undefined}></textarea>
                         <span id="design-{field.key}-help" class="help">{field.hint}</span>
                         {#if err(`design.${field.key}`)}<span class="error">{err(`design.${field.key}`)}</span>{/if}
-                        {#if field.key !== 'ide'}{@render suggestion(field.key)}{/if}
+                        {@render suggestion(field.key)}
                     </div>
                 {/each}
             </section>
@@ -190,13 +192,13 @@
                 <div class="flex flex-col gap-1">
                     <h2 id="data-title" class="font-display text-[22px] font-medium">Data & temuan penelitian</h2>
                     <p class="text-sm leading-relaxed text-ink-2">
-                        {literature ? 'Untuk studi literatur, hasil disintesis dari referensi bercatatan; bagian ini opsional.' : 'Satu-satunya dasar AI untuk bab hasil, pembahasan, kesimpulan, dan abstrak. Isi setelah data Anda terkumpul dan dianalisis.'}
+                        {literature ? 'Untuk studi literatur, hasil disintesis dari referensi bercatatan; bagian ini opsional.' : ptk ? 'Satu-satunya dasar AI untuk hasil tiap siklus, pembahasan, kesimpulan, dan abstrak. Isi setelah tindakan selesai.' : 'Satu-satunya dasar AI untuk bab hasil, pembahasan, kesimpulan, dan abstrak. Isi setelah data Anda terkumpul dan dianalisis.'}
                     </p>
                 </div>
                 <div class="field">
                     <label for="research-data" class="label">Ringkasan hasil analisis</label>
                     <textarea id="research-data" rows="10" class="input" bind:value={form.research_data} aria-describedby="research-data-help" aria-invalid={err('research_data') ? 'true' : undefined}></textarea>
-                    <span id="research-data-help" class="help">Tempel angka, tabel (sebagai teks), hasil uji statistik, tema wawancara, atau kutipan responden. AI tidak menambah angka atau temuan di luar isian ini, dan angka yang tidak cocok akan ditandai.</span>
+                    <span id="research-data-help" class="help">{ptk ? 'Tulis per tahap: pra-siklus, siklus I, siklus II, dan seterusnya, mis. rata-rata nilai, persentase ketuntasan, hasil observasi, dan catatan refleksi. ' : ''}Tempel angka, tabel (sebagai teks), hasil uji statistik, tema wawancara, atau kutipan responden. AI tidak menambah angka atau temuan di luar isian ini, dan angka yang tidak cocok akan ditandai.</span>
                     {#if err('research_data')}<span class="error">{err('research_data')}</span>{/if}
                 </div>
             </section>

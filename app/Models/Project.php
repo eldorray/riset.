@@ -58,6 +58,7 @@ class Project extends Model
         'subjek' => 'Subjek, populasi, sampel, atau objek',
         'pengumpulan' => 'Teknik pengumpulan data dan instrumen',
         'analisis' => 'Teknik analisis data',
+        'indikator' => 'Indikator keberhasilan',
         'ide' => 'Catatan dari diskusi judul',
     ];
 
@@ -66,7 +67,13 @@ class Project extends Model
         'kualitatif' => 'Kualitatif',
         'campuran' => 'Campuran (mixed methods)',
         'studi_literatur' => 'Studi literatur',
+        'ptk' => 'Penelitian tindakan kelas (PTK)',
     ];
+
+    /** Alur PTK untuk prompt AI; rincian siklus dan angka tetap dari rancangan dan data pengguna. */
+    private const PTK_GUIDE = 'Pendekatan PTK: penelitian bersiklus (perencanaan, pelaksanaan tindakan, observasi, refleksi) oleh guru di kelasnya sendiri untuk memperbaiki pembelajaran. '
+        .'Metode memuat setting dan subjek, prosedur tiap siklus, indikator keberhasilan, serta teknik pengumpulan dan analisis data; tahapan siklus boleh dijelaskan umum, tetapi rincian tindakan, jumlah pertemuan, dan jumlah siklus hanya dari rancangan atau [placeholder]. '
+        .'Hasil disajikan per tahap (pra-siklus, siklus I, siklus II, dan seterusnya sesuai data), dibandingkan antarsiklus dan dengan indikator keberhasilan; refleksi tiap siklus menjelaskan perbaikan untuk siklus berikutnya. Jangan menambah siklus atau angka yang tidak ada di data pengguna.';
 
     protected function casts(): array
     {
@@ -145,10 +152,16 @@ class Project extends Model
         return $this->design('pendekatan') === 'studi_literatur';
     }
 
-    /** Minimal untuk menulis bab metode tanpa menebak: masalah, pendekatan, dan teknik analisis. */
+    public function isClassroomAction(): bool
+    {
+        return $this->design('pendekatan') === 'ptk';
+    }
+
+    /** Minimal untuk menulis bab metode tanpa menebak: masalah, pendekatan, dan teknik analisis (PTK: juga indikator keberhasilan). */
     public function designReady(): bool
     {
-        return $this->design('masalah') !== '' && $this->design('pendekatan') !== '' && $this->design('analisis') !== '';
+        return $this->design('masalah') !== '' && $this->design('pendekatan') !== '' && $this->design('analisis') !== ''
+            && (! $this->isClassroomAction() || $this->design('indikator') !== '');
     }
 
     public function hasResearchData(): bool
@@ -182,7 +195,7 @@ class Project extends Model
     public function blockedReason(array $unit): ?string
     {
         if ($unit['kind'] === 'metode' && ! $this->designReady()) {
-            return 'Bagian metode memerlukan rancangan penelitian (rumusan masalah, pendekatan, dan teknik analisis). Isi di Rancangan penelitian.';
+            return 'Bagian metode memerlukan rancangan penelitian (rumusan masalah, pendekatan, dan teknik analisis; PTK juga indikator keberhasilan). Isi di Rancangan penelitian.';
         }
         if ($unit['kind'] === 'empiris' && ! $this->isLiteratureStudy() && ! $this->hasResearchData()) {
             return 'Bagian hasil, pembahasan, dan kesimpulan memerlukan data atau temuan penelitian Anda. Isi di Rancangan penelitian; AI tidak menulis hasil tanpa data.';
@@ -197,7 +210,7 @@ class Project extends Model
         $lines = [];
         foreach (self::DESIGN_FIELDS as $key => $label) {
             $value = $this->design($key);
-            if ($value === '') {
+            if ($value === '' || ($key === 'indikator' && ! $this->isClassroomAction())) {
                 continue;
             }
             $lines[] = match ($key) {
@@ -207,7 +220,12 @@ class Project extends Model
             };
         }
 
-        return $lines === [] ? '' : "Rancangan penelitian dari pengguna (acuan wajib; jangan mengubah maknanya, jangan menambah detail yang tidak ada):\n".implode("\n", $lines);
+        if ($lines === []) {
+            return '';
+        }
+
+        return "Rancangan penelitian dari pengguna (acuan wajib; jangan mengubah maknanya, jangan menambah detail yang tidak ada):\n".implode("\n", $lines)
+            .($this->isClassroomAction() ? "\n".self::PTK_GUIDE : '');
     }
 
     /** Arah penelitian yang ditinjau pengguna, bukan sumber bukti untuk sitasi. */

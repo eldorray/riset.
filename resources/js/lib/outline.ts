@@ -51,7 +51,7 @@ export function unitBlocked(
     >,
 ): string | null {
     if (unit.kind === 'metode' && !project.design_ready) {
-        return 'Bagian metode ditulis dari rancangan penelitian Anda. Isi rumusan masalah, pendekatan, dan teknik analisis di Rancangan penelitian.';
+        return 'Bagian metode ditulis dari rancangan penelitian Anda. Isi rumusan masalah, pendekatan, dan teknik analisis (PTK: juga indikator keberhasilan) di Rancangan penelitian.';
     }
     if (
         unit.kind === 'empiris' &&
