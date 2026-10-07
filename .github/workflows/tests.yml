@@ -33,6 +33,10 @@ jobs:
 
       # CI tidak punya MySQL; .env.example memakai MySQL untuk produksi, jadi setup CI memakai SQLite.
       # Tes tetap memakai SQLite memori dari phpunit.xml.
+      # Impor artikel PDF memakai pdftotext (poppler); runner Ubuntu tidak menyertakannya.
+      - name: Install pdftotext
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
       - name: Create SQLite database
         run: touch database/database.sqlite
 
