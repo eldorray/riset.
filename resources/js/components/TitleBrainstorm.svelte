@@ -8,23 +8,30 @@
 
     let { documentType, onselect }: { documentType: string; onselect: (title: string, idea: string) => void } = $props();
     type Turn = { question: string; answer: string; feedback?: string };
-    type Result = { feedback: string; question?: string; titles?: { title: string; reason: string }[] };
-    const discussion = useHttp<{ document_type: string; turns: Turn[] }, Result>({ document_type: '', turns: [] });
+    type Titles = { feedback: string; titles: { title: string; reason: string }[]; summary: string };
+    type Result = Partial<Titles> & { feedback: string; question?: string; ready?: boolean };
+    // Sama dengan BrainstormController::MAX_TURNS; giliran terakhir selalu menghasilkan judul.
+    const MAX_TURNS = 12;
+    const FIRST_QUESTION = 'Bidang atau topik apa yang menarik bagi Anda? Ceritakan minat atau pengalaman Anda, meskipun idenya masih umum.';
+    const discussion = useHttp<{ document_type: string; turns: Turn[]; titles: boolean }, Result>({ document_type: '', turns: [], titles: false });
     let started = $state(false);
     let turns = $state<Turn[]>([]);
-    let question = $state('Bidang atau topik apa yang menarik bagi Anda? Ceritakan minat atau pengalaman Anda, meskipun idenya masih umum.');
+    let question = $state(FIRST_QUESTION);
+    let ready = $state(false);
     let answer = $state('');
-    let result = $state<Result | null>(null);
+    let titles = $state<Titles | null>(null);
     let error = $state('');
     let input = $state<HTMLTextAreaElement>();
     let selectedType = $state('');
+    const lastTurn = $derived(turns.length + 1 >= MAX_TURNS);
 
     function reset() {
         started = false;
         turns = [];
-        question = 'Bidang atau topik apa yang menarik bagi Anda? Ceritakan minat atau pengalaman Anda, meskipun idenya masih umum.';
+        question = FIRST_QUESTION;
+        ready = false;
         answer = '';
-        result = null;
+        titles = null;
         error = '';
     }
 
@@ -35,30 +42,52 @@
         }
     });
 
-    async function start() {
-        started = true;
+    async function focusInput() {
         await tick();
         input?.focus();
     }
 
-    async function send(event: SubmitEvent) {
-        event.preventDefault();
-        if (!answer.trim() || discussion.processing) return;
+    async function start() {
+        started = true;
+        await focusInput();
+    }
+
+    async function send(wantTitles: boolean) {
+        if (discussion.processing || (!answer.trim() && !(wantTitles && turns.length))) return;
         error = '';
-        const pending = { question, answer: answer.trim() };
+        const pending = answer.trim() ? [{ question, answer: answer.trim() }] : [];
         discussion.document_type = selectedType;
-        discussion.turns = [...$state.snapshot(turns).map(({ question, answer }) => ({ question, answer })), pending];
+        discussion.titles = wantTitles;
+        discussion.turns = [...$state.snapshot(turns).map(({ question, answer }) => ({ question, answer })), ...pending];
         try {
             const response = await discussion.post(projects.brainstorm().url);
-            turns = [...turns, { ...pending, feedback: response.feedback }];
-            result = response;
             answer = '';
-            if (response.question) question = response.question;
-            await tick();
-            input?.focus();
+            if (response.titles && response.summary) {
+                turns = [...turns, ...pending];
+                titles = { feedback: response.feedback, titles: response.titles, summary: response.summary };
+                return;
+            }
+            turns = [...turns, ...pending.map((turn) => ({ ...turn, feedback: response.feedback }))];
+            question = response.question ?? question;
+            ready = response.ready ?? false;
+            await focusInput();
         } catch (cause) {
             error = errorMessage(cause, 'Diskusi dengan AI gagal. Coba lagi.');
         }
+    }
+
+    function submit(event: SubmitEvent) {
+        event.preventDefault();
+        void send(lastTurn);
+    }
+
+    async function keepDiscussing() {
+        if (!titles) return;
+        // Judul yang ditawarkan masuk riwayat agar AI tahu apa yang belum cocok.
+        question = `Saya menawarkan: ${titles.titles.map((suggestion) => `“${suggestion.title}”`).join('; ')}. Apa yang belum cocok, atau arah mana yang ingin Anda dalami?`;
+        ready = false;
+        titles = null;
+        await focusInput();
     }
 </script>
 
@@ -66,44 +95,57 @@
     <div class="flex flex-col gap-2">
         <span class="badge badge-ai self-start">Brainstorming AI</span>
         <h2 id="brainstorm-title" class="font-display text-[26px] font-medium">Bingung menentukan judul?</h2>
-        <p class="text-sm leading-relaxed text-ink-2">Mari diskusikan ide Anda. AI akan membantu mempertajam fokus lewat 3 pertanyaan, lalu menawarkan 3 alternatif judul.</p>
+        <p class="text-sm leading-relaxed text-ink-2">Diskusikan ide Anda sedalam yang Anda mau. AI menanggapi, menjawab pertanyaan balik, dan menggali fokus penelitian. Minta 3 alternatif judul kapan saja.</p>
     </div>
-    <AiCost inputCharacters={2000 + answer.length + turns.reduce((sum, turn) => sum + turn.answer.length, 0)} outputWords={250} detail="Perkiraan setiap jawaban AI dalam diskusi judul." />
+    <AiCost inputCharacters={2000 + answer.length + turns.reduce((sum, turn) => sum + turn.question.length + turn.answer.length + (turn.feedback?.length ?? 0), 0)} outputWords={250} detail="Perkiraan setiap balasan AI. Makin panjang diskusi, makin banyak riwayat yang dibaca AI." />
     {#if !started}
         <button type="button" class="btn btn-secondary" onclick={start} disabled={!documentType}>Diskusi dengan AI</button>
         {#if !documentType}<p class="help">Pilih jenis tulisan pada form proyek untuk memulai.</p>{/if}
     {:else}
-        <ol class="flex flex-col gap-4" aria-label="Riwayat diskusi">
-            {#each turns as turn, i}
+        <ol class="flex flex-col gap-4" aria-label="Riwayat diskusi" aria-live="polite">
+            {#each turns as turn, i (i)}
                 <li class="flex flex-col gap-2 border-t border-line pt-4 text-sm leading-relaxed">
-                    <p class="font-semibold">{i + 1}. {turn.question}</p>
+                    <p class="font-semibold">{turn.question}</p>
                     <p class="whitespace-pre-wrap rounded-lg bg-paper p-3"><span class="font-semibold">Anda:</span> {turn.answer}</p>
-                    <p><span class="font-semibold text-primary">AI:</span> {turn.feedback}</p>
+                    {#if turn.feedback}<p class="whitespace-pre-line"><span class="font-semibold text-primary">AI:</span> {turn.feedback}</p>{/if}
                 </li>
             {/each}
         </ol>
-        {#if result?.titles}
-            <div class="flex flex-col gap-3" aria-live="polite">
+        {#if titles}
+            <div class="flex flex-col gap-3 border-t border-line pt-4" aria-live="polite">
                 <h3 class="font-semibold">3 alternatif judul untuk Anda</h3>
-                {#each result.titles as suggestion, i}
+                <p class="text-sm leading-relaxed"><span class="font-semibold text-primary">Fokus:</span> {titles.feedback}</p>
+                {#each titles.titles as suggestion, i (suggestion.title)}
                     <div class="flex flex-col gap-2 rounded-lg border border-line p-4">
                         <h4 class="font-medium">{i + 1}. {suggestion.title}</h4>
                         <p class="text-sm leading-relaxed text-ink-2">{suggestion.reason}</p>
-                        <button type="button" class="btn btn-secondary self-start" onclick={() => onselect(suggestion.title, turns.map((turn) => `${turn.question}\n${turn.answer}`).join('\n\n'))}>Pakai judul</button>
+                        <button type="button" class="btn btn-secondary self-start" onclick={() => titles && onselect(suggestion.title, titles.summary)}>Pakai judul</button>
                     </div>
                 {/each}
+                {#if turns.length < MAX_TURNS}
+                    <button type="button" class="btn btn-ghost self-start" onclick={keepDiscussing}>Belum cocok? Lanjut diskusi</button>
+                {/if}
             </div>
         {:else}
-            <form class="flex flex-col gap-3 border-t border-line pt-4" onsubmit={send}>
-                <p class="text-xs text-ink-2" aria-live="polite">Pertanyaan {turns.length + 1} dari 3</p>
-                <label for="brainstorm-answer" class="label leading-relaxed">{question}</label>
-                <textarea id="brainstorm-answer" bind:this={input} bind:value={answer} class="input min-h-28" rows="4" maxlength="2000" required disabled={discussion.processing} placeholder="Ceritakan ide Anda. Belum tahu juga boleh."></textarea>
-                <button type="submit" class="btn btn-primary" disabled={discussion.processing || !answer.trim()}>
-                    {#if discussion.processing}<Icon name="spinner" size={16} /> AI sedang berpikir…{:else if turns.length === 2}Lihat 3 alternatif judul{:else}Kirim jawaban{/if}
-                </button>
+            <form class="flex flex-col gap-3 border-t border-line pt-4" onsubmit={submit}>
+                <label for="brainstorm-answer" class="label leading-relaxed whitespace-pre-line">{question}</label>
+                <textarea id="brainstorm-answer" bind:this={input} bind:value={answer} class="input min-h-28" rows="4" maxlength="2000" required disabled={discussion.processing} placeholder="Jawab, tanya balik, atau ceritakan keraguan Anda."></textarea>
+                {#if lastTurn}
+                    <p class="help">Ini giliran terakhir; AI akan langsung memberi 3 alternatif judul.</p>
+                {:else if ready}
+                    <p class="text-xs font-medium text-ok" role="status">Fokus sudah cukup jelas untuk judul. Lanjutkan diskusi atau lihat judul sekarang.</p>
+                {/if}
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary grow" disabled={discussion.processing || !answer.trim()}>
+                        {#if discussion.processing}<Icon name="spinner" size={16} /> AI sedang berpikir…{:else if lastTurn}Kirim & lihat judul{:else}Kirim{/if}
+                    </button>
+                    {#if !lastTurn}
+                        <button type="button" class="btn {ready ? 'btn-primary' : 'btn-secondary'} grow" onclick={() => send(true)} disabled={discussion.processing || (!turns.length && !answer.trim())}>Lihat 3 judul</button>
+                    {/if}
+                </div>
             </form>
         {/if}
-        {#if discussion.processing}<p role="status" class="help">AI sedang membaca jawaban Anda dan menyusun feedback.</p>{/if}
+        {#if discussion.processing}<p role="status" class="help">AI sedang membaca diskusi dan menyusun tanggapan.</p>{/if}
         {#if error}<p role="alert" class="error">{error} Jawaban Anda tetap tersedia untuk dicoba ulang.</p>{/if}
         <button type="button" class="btn btn-ghost self-start" onclick={reset} disabled={discussion.processing}>Mulai ulang</button>
     {/if}
