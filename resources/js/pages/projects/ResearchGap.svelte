@@ -29,7 +29,7 @@
         if (initialized !== project.id) {
             initialized = project.id;
             focus = analysis?.focus ?? '';
-            selected = analysis ? [...analysis.sources.map(source => source.id), ...analysis.excluded.map(source => source.id)].filter(id => references.some(source => source.id === id)).slice(0, 10) : [];
+            selected = analysis ? [...analysis.sources.map(source => source.id), ...analysis.excluded.map(source => source.id)].filter(id => references.some(source => source.id === id)) : [];
             editing = false;
         }
     });
@@ -42,18 +42,15 @@
     });
 
     function toggle(id: number) {
-        selected = selected.includes(id) ? selected.filter(value => value !== id) : selected.length < 10 ? [...selected, id] : selected;
+        selected = selected.includes(id) ? selected.filter(value => value !== id) : [...selected, id];
     }
     function selectGroup(sources: Source[]) {
         const ids = sources.map(source => source.id);
         if (ids.every(id => selected.includes(id))) {
             selected = selected.filter(id => !ids.includes(id));
         } else {
-            const next = Array.from(new Set([...selected, ...ids]));
-            if (next.length > 10) { actionError = 'Pilih maksimal 10 sumber per analisis. Pilih satu per satu dari kategori ini.'; return; }
-            selected = next;
+            selected = Array.from(new Set([...selected, ...ids]));
         }
-        actionError = '';
     }
     async function start(event: SubmitEvent) {
         event.preventDefault();
@@ -114,13 +111,13 @@
 
     <form class="card flex flex-col gap-5 p-5 sm:p-6" onsubmit={start}>
         <div class="field"><label class="label" for="gap-focus">Fokus yang ingin dibandingkan</label><textarea id="gap-focus" class="input min-h-24" maxlength="2000" placeholder={project.title} bind:value={focus} disabled={starting}></textarea><p class="help">Kosongkan untuk memakai judul proyek. Sebutkan topik, konteks, atau persoalan yang ingin Anda teliti.</p></div>
-        <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Pilih sumber <span class="font-mono text-sm text-ink-3">{selected.length}/10</span></h2><Link class="btn btn-secondary" href={`/projects/${project.id}/references`}>Kelola referensi</Link></div>
-        <p class="help">Minimal 2, maksimal 10 sumber. Pilih artikel yang relevan; sumber tanpa catatan akan dicoba dibaca terlebih dahulu.</p>
+        <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">Pilih sumber <span class="font-mono text-sm text-ink-3">{selected.length}/{references.length}</span></h2><div class="flex flex-wrap gap-2">{#if selected.length < references.length}<button type="button" class="btn btn-ghost" disabled={starting} onclick={() => (selected = references.map(source => source.id))}>Pilih semua</button>{/if}{#if selected.length}<button type="button" class="btn btn-ghost" disabled={starting} onclick={() => (selected = [])}>Kosongkan pilihan</button>{/if}<Link class="btn btn-secondary" href={`/projects/${project.id}/references`}>Kelola referensi</Link></div></div>
+        <p class="help">Minimal 2 sumber. Pilih artikel yang relevan; sumber tanpa catatan akan dicoba dibaca terlebih dahulu. Makin banyak sumber, makin lama dan makin banyak kredit yang dipakai.</p>
         {#each groups as group (group.name)}
             <details class="rounded-lg border border-line" open>
                 <summary class="cursor-pointer px-4 py-3 text-sm font-semibold">{group.name} ({group.sources.length})</summary>
                 <div class="border-t border-line px-4 py-3"><button class="btn btn-ghost mb-2 text-xs" type="button" disabled={starting} onclick={() => selectGroup(group.sources)}>{group.sources.every(source => selected.includes(source.id)) ? 'Batal pilih kategori' : 'Pilih kategori'}</button>
-                    {#each group.sources as source (source.id)}<label class="flex cursor-pointer items-start gap-3 border-t border-sunken py-3"><input type="checkbox" class="mt-0.5 size-4.5 shrink-0 accent-primary" checked={selected.includes(source.id)} onchange={() => toggle(source.id)} disabled={starting || (!selected.includes(source.id) && selected.length >= 10)} /><span class="min-w-0"><span class="block text-sm font-medium">{source.title}</span><span class="mt-1 block text-xs text-ink-3">{source.notes.trim() ? source.basis : 'Belum dibaca · akan dicoba otomatis'}</span></span></label>{/each}
+                    {#each group.sources as source (source.id)}<label class="flex cursor-pointer items-start gap-3 border-t border-sunken py-3 has-disabled:cursor-not-allowed has-disabled:opacity-55"><input type="checkbox" class="mt-0.5 size-4.5 shrink-0 accent-primary" checked={selected.includes(source.id)} onchange={() => toggle(source.id)} disabled={starting} /><span class="min-w-0"><span class="block text-sm font-medium">{source.title}</span><span class="mt-1 block text-xs text-ink-3">{source.notes.trim() ? source.basis : 'Belum dibaca · akan dicoba otomatis'}</span></span></label>{/each}
                 </div>
             </details>
         {:else}<div class="rounded-lg border border-dashed border-line-strong p-5 text-sm text-ink-2">Tambahkan minimal dua referensi sebelum memulai analisis. <Link href={`/projects/${project.id}/references`} class="font-semibold text-primary underline">Tambah referensi</Link></div>{/each}

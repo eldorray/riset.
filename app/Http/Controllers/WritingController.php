@@ -30,7 +30,7 @@ final class WritingController extends Controller
             'units' => ['required_if:kind,draft_all', 'array', 'min:1', 'max:200'],
             'units.*' => ['string', 'distinct', Rule::in($units)],
             'part' => ['required_if:kind,front', 'string', Rule::in(array_column($project->document_type->frontMatter(), 'key'))],
-            'references' => ['present_if:kind,draft,draft_all,manuscript,gap', 'array', $request->input('kind') === 'gap' ? 'min:2' : 'min:0', $request->input('kind') === 'gap' ? 'max:10' : 'max:40'],
+            'references' => ['present_if:kind,draft,draft_all,manuscript,gap', 'array', $request->input('kind') === 'gap' ? 'min:2' : 'min:0', 'max:'.($request->input('kind') === 'gap' ? $project->references()->count() : 40)],
             'references.*' => ['integer', 'distinct', Rule::exists('project_references', 'id')->where('project_id', $project->id)->whereNull('deleted_at')],
             // Hanya mengisi bagian kosong: menulis ulang seluruh naskah dengan parafrase tidak disediakan (integritas akademik).
             'mode' => ['required_if:kind,manuscript', Rule::in(['fill'])],

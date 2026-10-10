@@ -81,6 +81,19 @@ it('menyimpan hasil background dan pilihan suntingan tanpa menimpanya saat anali
     expect($this->project->fresh()->researchGapContext())->toBe('')->and($this->project->fresh()->gap_analysis['id'])->toBe($next);
 });
 
+it('membandingkan lebih dari sepuluh sumber dengan matriks bertahap', function () {
+    $this->sources = $this->sources->merge(Reference::factory()->for($this->project)->count(10)->create(['notes' => 'Catatan sumber tambahan tentang latihan berbicara.']));
+    $reply = gapReply($this->sources);
+    Http::fake(['ai.test/*' => Http::sequence()
+        ->push(gapAiResponse(['matrix' => array_slice($reply['matrix'], 0, 10)]))
+        ->push(gapAiResponse(['matrix' => array_slice($reply['matrix'], 10)]))
+        ->push(gapAiResponse(['candidates' => $reply['candidates'], 'limitations' => $reply['limitations']]))]);
+    runGap($this);
+    $analysis = $this->project->fresh()->gap_analysis;
+    expect($analysis['matrix'])->toHaveCount(12)->and($analysis['candidates'][0]['source_ids'])->toHaveCount(12);
+    Http::assertSentCount(3);
+});
+
 it('mengukur kredit AI pemilik di worker dan tidak memproses job ganda', function () {
     $user = $this->project->user;
     $user->forceFill(['unlimited' => false, 'subscription_until' => now()->addMonth()])->save();
